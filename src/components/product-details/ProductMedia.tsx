@@ -117,7 +117,7 @@ export const ProductMedia = ({ imageUrl, videoUrl, productName, webpUrl }: Produ
       </div>
 
       <Dialog open={showMedia} onOpenChange={setShowMedia}>
-        <DialogContent className="max-w-4xl w-full p-0">
+        <DialogContent className="max-w-4xl w-full p-0" hideCloseButton>
           {videoUrl && showVideo ? (
             <video
               src={videoUrl}
