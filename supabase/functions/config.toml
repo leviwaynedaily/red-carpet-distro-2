@@ -1,0 +1,4 @@
+project_id = "nzqdkelbytkvvwdgywja"
+
+[functions.upload-pwa-icons]
+verify_jwt = false
