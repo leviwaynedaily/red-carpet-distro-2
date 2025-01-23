@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
-import { ProductMedia } from "@/components/product-details/ProductMedia";
+import { ProductCard } from "@/components/ProductCard";
 import { ProductInfo } from "@/components/product-details/ProductInfo";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -87,11 +87,19 @@ export default function ProductDetails() {
 
       <div className={`grid ${isMobile ? 'grid-rows-[auto_1fr] gap-2' : 'grid-cols-2 gap-8'} h-[calc(100vh-4rem)]`}>
         <div className={`${isMobile ? 'h-[45vh]' : 'md:sticky md:top-24'} overflow-hidden`}>
-          <ProductMedia
-            imageUrl={product.image_url}
-            videoUrl={product.video_url}
-            productName={product.name}
-            webpUrl={product.media?.webp}
+          <ProductCard
+            id={product.id}
+            name={product.name}
+            description={product.description}
+            image={product.image_url}
+            video={product.video_url}
+            categories={product.categories}
+            strain={product.strain}
+            stock={product.stock}
+            regular_price={product.regular_price}
+            shipping_price={product.shipping_price}
+            viewMode="large"
+            media={product.media}
           />
         </div>
         <div className={`${isMobile ? 'h-[45vh]' : ''} overflow-y-auto`}>
