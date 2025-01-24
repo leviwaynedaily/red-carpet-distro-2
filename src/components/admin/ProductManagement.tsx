@@ -17,7 +17,7 @@ type Product = Tables<"products">;
 export function ProductManagement() {
   const { data: products, isLoading, error } = useProducts();
   const [editingProduct, setEditingProduct] = useState<string | null>(null);
-  const [editValues, setEditValues] = useState<Partial<Product> & { categories?: string[] }>({});
+  const [editValues, setEditValues] = useState<Partial<Product>>({});
   const isMobile = useIsMobile();
   const [searchQuery, setSearchQuery] = useState("");
   const queryClient = useQueryClient();
@@ -28,7 +28,6 @@ export function ProductManagement() {
     "description",
     "image",
     "video_url",
-    "categories",
     "stock",
     "regular_price",
     "shipping_price",
@@ -40,7 +39,6 @@ export function ProductManagement() {
     { key: "description", label: "Description" },
     { key: "image", label: "Image" },
     { key: "video_url", label: "Video" },
-    { key: "categories", label: "Categories" },
     { key: "stock", label: "Stock" },
     { key: "regular_price", label: "Price" },
     { key: "shipping_price", label: "Shipping" },
@@ -54,13 +52,10 @@ export function ProductManagement() {
     );
   };
 
-  const handleEditStart = async (product: Product & { categories?: string[] }) => {
+  const handleEditStart = async (product: Product) => {
     console.log("ProductManagement: Starting edit for product:", product.id);
     setEditingProduct(product.id);
-    setEditValues({
-      ...product,
-      categories: product.categories || [],
-    });
+    setEditValues(product);
   };
 
   const handleEditSave = async () => {
@@ -87,37 +82,8 @@ export function ProductManagement() {
 
       if (updateError) throw updateError;
 
-      // Handle categories update
-      if (editValues.categories) {
-        const { error: deleteError } = await supabase
-          .from("product_categories")
-          .delete()
-          .eq("product_id", editingProduct);
-
-        if (deleteError) throw deleteError;
-
-        const { data: categoriesData } = await supabase
-          .from("categories")
-          .select("id, name")
-          .in("name", editValues.categories);
-
-        if (categoriesData) {
-          const categoryAssociations = categoriesData.map((category) => ({
-            product_id: editingProduct,
-            category_id: category.id,
-          }));
-
-          const { error: insertError } = await supabase
-            .from("product_categories")
-            .insert(categoryAssociations);
-
-          if (insertError) throw insertError;
-        }
-      }
-
       // Invalidate and refetch products after successful save
       await queryClient.invalidateQueries({ queryKey: ["products"] });
-      await queryClient.invalidateQueries({ queryKey: ["products", "product_categories"] });
 
       setEditingProduct(null);
       setEditValues({});
@@ -134,7 +100,7 @@ export function ProductManagement() {
     setEditValues({});
   };
 
-  const handleEditChange = (values: Partial<Product> & { categories?: string[] }) => {
+  const handleEditChange = (values: Partial<Product>) => {
     console.log("ProductManagement: Updating edit values:", values);
     setEditValues(values);
   };

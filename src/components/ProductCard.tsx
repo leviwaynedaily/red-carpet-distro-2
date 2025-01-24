@@ -201,14 +201,15 @@ export const ProductCard = ({
               {mediaItems.map((item, index) => (
                 <CarouselItem key={index} className="flex justify-center items-center">
                   {item.type === 'video' ? (
-                    <div className="w-full flex justify-center mt-14">
+                    <div className="w-full flex justify-center mt-14 group">
                       <video
                         src={item.url}
-                        controls
                         playsInline
                         muted={false}
                         autoPlay
-                        className="max-h-[50vh] w-auto"
+                        className="max-h-[50vh] w-auto hover:controls group-hover:controls"
+                        onMouseEnter={(e) => e.currentTarget.controls = true}
+                        onMouseLeave={(e) => e.currentTarget.controls = false}
                       />
                     </div>
                   ) : (

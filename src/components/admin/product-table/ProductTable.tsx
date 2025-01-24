@@ -15,15 +15,14 @@ import { Button } from "@/components/ui/button";
 type Product = Tables<"products">;
 
 interface ProductTableProps {
-  products: (Product & { categories?: string[] })[];
+  products: Product[];
   editingProduct: string | null;
-  editValues: Partial<Product> & { categories?: string[] };
-  categories?: { id: string; name: string; }[];
+  editValues: Partial<Product>;
   visibleColumns: string[];
-  onEditStart: (product: Product & { categories?: string[] }) => void;
+  onEditStart: (product: Product) => void;
   onEditSave: () => void;
   onEditCancel: () => void;
-  onEditChange: (values: Partial<Product> & { categories?: string[] }) => void;
+  onEditChange: (values: Partial<Product>) => void;
   onDelete: (id: string) => void;
   onImageUpload: (productId: string, url: string) => void;
   onVideoUpload: (productId: string, url: string) => void;
@@ -38,7 +37,6 @@ export function ProductTable({
   visibleColumns,
   editingProduct,
   editValues,
-  categories,
   onEditStart,
   onEditSave,
   onEditCancel,
@@ -57,24 +55,10 @@ export function ProductTable({
     { key: "description", label: "Description", sortable: true },
     { key: "image", label: "Image", sortable: false },
     { key: "video_url", label: "Video", sortable: false },
-    { key: "categories", label: "Categories", sortable: false },
     { key: "stock", label: "Stock", sortable: true },
     { key: "regular_price", label: "Price", sortable: true },
     { key: "shipping_price", label: "Shipping", sortable: true },
   ];
-
-  // Fetch categories
-  const { data: fetchedCategories } = useQuery({
-    queryKey: ['categories'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('categories')
-        .select('*')
-        .order('name');
-      if (error) throw error;
-      return data;
-    },
-  });
 
   return (
     <div className="rounded-md border">
@@ -108,7 +92,6 @@ export function ProductTable({
               visibleColumns={visibleColumns}
               isEditing={editingProduct === product.id}
               editValues={editValues}
-              categories={categories || fetchedCategories}
               onEditStart={onEditStart}
               onEditSave={onEditSave}
               onEditCancel={onEditCancel}

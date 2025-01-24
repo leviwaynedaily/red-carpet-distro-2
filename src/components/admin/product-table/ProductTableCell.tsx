@@ -16,15 +16,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-type Product = Tables<"products">;
+type Product = Tables<"products"> & {
+  media?: {
+    original: string;
+    webp: string;
+  };
+};
 
 interface ProductTableCellProps {
   column: string;
-  product: Product & { categories?: string[] };
+  product: Product;
   isEditing: boolean;
-  editValues: Partial<Product> & { categories?: string[] };
-  categories?: { id: string; name: string; }[];
-  onEditChange: (values: Partial<Product> & { categories?: string[] }) => void;
+  editValues: Partial<Product>;
+  onEditChange: (values: Partial<Product>) => void;
   onMediaClick?: (type: 'image' | 'video', url: string) => void;
   onDeleteMedia?: (productId: string, type: 'image' | 'video') => void;
   onImageUpload?: (productId: string, url: string) => void;
@@ -36,48 +40,15 @@ export function ProductTableCell({
   product,
   isEditing,
   editValues,
-  categories,
   onEditChange,
   onMediaClick,
   onDeleteMedia,
   onImageUpload,
   onVideoUpload,
 }: ProductTableCellProps) {
-  // Fetch current product categories
-  const { data: productCategories } = useQuery({
-    queryKey: ['product_categories', product.id],
-    queryFn: async () => {
-      console.log('ProductTableCell: Fetching categories for product:', product.id);
-      const { data, error } = await supabase
-        .from('product_categories')
-        .select('categories(name)')
-        .eq('product_id', product.id);
-
-      if (error) {
-        console.error('ProductTableCell: Error fetching product categories:', error);
-        throw error;
-      }
-
-      const categoryNames = data.map(pc => pc.categories?.name).filter(Boolean) as string[];
-      console.log('ProductTableCell: Retrieved categories:', categoryNames);
-      return categoryNames;
-    },
-    enabled: isEditing,
-  });
-
   const handleInputChange = (field: keyof Product, value: string | number | string[]) => {
     console.log('ProductTableCell: Updating field:', field, 'with value:', value);
     onEditChange({ ...editValues, [field]: value });
-  };
-
-  const handleCategoryChange = (categoryName: string) => {
-    console.log('ProductTableCell: Category selected:', categoryName);
-    const currentCategories = editValues.categories || productCategories || [];
-    const newCategories = currentCategories.includes(categoryName)
-      ? currentCategories.filter(cat => cat !== categoryName)
-      : [...currentCategories, categoryName];
-    
-    onEditChange({ ...editValues, categories: newCategories });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -115,22 +86,19 @@ export function ProductTableCell({
           <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
             {product.image_url ? (
               <div className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="p-0"
+                <div className="relative w-12 h-12 group cursor-pointer"
                   onClick={(e) => {
                     e.stopPropagation();
                     onMediaClick?.('image', product.image_url!);
                   }}
-                  tabIndex={isEditing ? 0 : -1}
                 >
                   <img
                     src={product.image_url}
                     alt={product.name}
-                    className="w-16 h-16 object-cover rounded-md"
+                    className="w-full h-full object-cover rounded-md"
                   />
-                </Button>
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-colors rounded-md" />
+                </div>
                 {isEditing && (
                   <Button
                     variant="destructive"
@@ -148,7 +116,7 @@ export function ProductTableCell({
               </div>
             ) : (
               isEditing && (
-                <div className="flex items-center justify-center w-16 h-16 bg-gray-100 rounded-md">
+                <div className="relative w-12 h-12 flex items-center justify-center bg-gray-100 rounded-md">
                   <Image className="h-6 w-6 text-gray-400" />
                 </div>
               )
@@ -172,17 +140,21 @@ export function ProductTableCell({
           <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
             {product.video_url && (
               <div className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="icon"
+                <div className="relative w-12 h-12 group cursor-pointer"
                   onClick={(e) => {
                     e.stopPropagation();
                     onMediaClick?.('video', product.video_url!);
                   }}
-                  tabIndex={isEditing ? 0 : -1}
                 >
-                  <Play className="h-4 w-4" />
-                </Button>
+                  <img
+                    src={product.media?.webp || product.image_url || '/placeholder.svg'}
+                    alt={product.name}
+                    className="w-full h-full object-cover rounded-md"
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/50 transition-colors rounded-md">
+                    <Play className="h-6 w-6 text-white" />
+                  </div>
+                </div>
                 {isEditing && (
                   <Button
                     variant="destructive"
@@ -213,29 +185,6 @@ export function ProductTableCell({
           </div>
         );
 
-      case 'categories':
-        return isEditing ? (
-          <div className="flex flex-col gap-2" onClick={(e) => e.stopPropagation()}>
-            {categories?.map((category) => (
-              <div key={category.id} className="flex items-center space-x-2">
-                <Select
-                  value={editValues.categories?.includes(category.name) ? category.name : undefined}
-                  onValueChange={() => handleCategoryChange(category.name)}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder={category.name} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={category.name}>{category.name}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div>{product.categories?.join(", ") || '-'}</div>
-        );
-
       case 'stock':
         return isEditing ? (
           <Input
@@ -247,7 +196,7 @@ export function ProductTableCell({
             tabIndex={0}
           />
         ) : (
-          product.stock?.toString() || '-'
+          product.stock?.toString() || '0'
         );
 
       case 'regular_price':

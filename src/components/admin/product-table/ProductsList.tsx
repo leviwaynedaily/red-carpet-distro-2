@@ -11,28 +11,22 @@ type Product = Tables<"products">;
 interface ProductsListProps {
   searchTerm: string;
   visibleColumns: string[];
-  categories?: { id: string; name: string; }[];
 }
 
-export function ProductsList({ searchTerm, visibleColumns, categories }: ProductsListProps) {
+export function ProductsList({ searchTerm, visibleColumns }: ProductsListProps) {
   const [editingProduct, setEditingProduct] = useState<string | null>(null);
-  const [editValues, setEditValues] = useState<Partial<Product> & { categories?: string[] }>({});
+  const [editValues, setEditValues] = useState<Partial<Product>>({});
   const queryClient = useQueryClient();
 
-  // Fetch products with their categories
+  // Fetch products
   const { data: products, error } = useQuery({
-    queryKey: ['products', 'product_categories'],
+    queryKey: ['products'],
     queryFn: async () => {
-      console.log('ProductsList: Starting to fetch products with categories');
+      console.log('ProductsList: Starting to fetch products');
       
       const { data: productsData, error: productsError } = await supabase
         .from('products')
-        .select(`
-          *,
-          product_categories (
-            categories(name)
-          )
-        `);
+        .select('*');
       
       if (productsError) {
         console.error('ProductsList: Error fetching products:', productsError);
@@ -40,26 +34,10 @@ export function ProductsList({ searchTerm, visibleColumns, categories }: Product
       }
 
       console.log('ProductsList: Raw products data:', productsData);
-      
-      // Transform the data to match the expected format
-      const transformedProducts = productsData.map(product => {
-        console.log('ProductsList: Transforming product:', product.id, product.name);
-        return {
-          ...product,
-          categories: product.product_categories
-            ?.map(pc => {
-              console.log('ProductsList: Processing category for product:', product.id, pc);
-              return pc.categories?.name;
-            })
-            .filter(Boolean) || []
-        };
-      });
-      
-      console.log('ProductsList: Transformed products:', transformedProducts);
-      return transformedProducts;
+      return productsData;
     },
-    retry: 1, // Retry once if the query fails
-    refetchOnWindowFocus: false // Prevent refetching when window gains focus
+    retry: 1,
+    refetchOnWindowFocus: false
   });
 
   if (error) {
@@ -96,43 +74,8 @@ export function ProductsList({ searchTerm, visibleColumns, categories }: Product
 
       if (updateError) throw updateError;
 
-      // Handle categories if they've changed
-      if (editValues.categories) {
-        console.log('ProductsList: Updating categories for product:', editingProduct);
-        
-        // First, delete existing category associations
-        const { error: deleteError } = await supabase
-          .from('product_categories')
-          .delete()
-          .eq('product_id', editingProduct);
-
-        if (deleteError) throw deleteError;
-
-        // Then, add new category associations
-        const categoryPromises = editValues.categories.map(async (categoryName) => {
-          // Find the category ID for this name
-          const { data: categoryData } = await supabase
-            .from('categories')
-            .select('id')
-            .eq('name', categoryName)
-            .single();
-
-          if (categoryData) {
-            return supabase
-              .from('product_categories')
-              .insert({
-                product_id: editingProduct,
-                category_id: categoryData.id
-              });
-          }
-        });
-
-        await Promise.all(categoryPromises);
-      }
-
-      // Invalidate both products and product_categories queries to ensure fresh data
+      // Invalidate queries to ensure fresh data
       await queryClient.invalidateQueries({ queryKey: ['products'] });
-      await queryClient.invalidateQueries({ queryKey: ['product_categories'] });
       
       setEditingProduct(null);
       toast.success('Product updated successfully');
@@ -202,7 +145,6 @@ export function ProductsList({ searchTerm, visibleColumns, categories }: Product
       visibleColumns={visibleColumns}
       editingProduct={editingProduct}
       editValues={editValues}
-      categories={categories}
       onEditStart={(product) => {
         console.log('ProductsList: Starting edit for product:', product);
         setEditingProduct(product.id);
