@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { LogOut, Home } from "lucide-react";
 
 export default function Admin() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -153,11 +154,21 @@ export default function Admin() {
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold">Admin Dashboard</h1>
           <div className="space-x-2">
-            <Button variant="outline" onClick={handleLogout}>
-              Logout
+            <Button 
+              variant="outline" 
+              size="icon"
+              onClick={handleLogout}
+              title="Logout"
+            >
+              <LogOut className="h-4 w-4" />
             </Button>
-            <Button variant="outline" onClick={() => navigate("/")}>
-              Back to Site
+            <Button 
+              variant="outline" 
+              size="icon"
+              onClick={() => navigate("/")}
+              title="Back to Site"
+            >
+              <Home className="h-4 w-4" />
             </Button>
           </div>
         </div>

@@ -114,6 +114,10 @@ export function ProductManagement() {
         .eq("id", id);
 
       if (error) throw error;
+
+      // Invalidate and refetch products after successful delete
+      await queryClient.invalidateQueries({ queryKey: ["products"] });
+      
       toast.success("Product deleted successfully");
     } catch (error) {
       console.error("Error deleting product:", error);
@@ -276,8 +280,21 @@ export function ProductManagement() {
         return;
       }
 
-      // Force TS to see `name` as a string
-      const { data, error } = await supabase
+      if (!product.video_url) {
+        toast.error("Video is required");
+        return;
+      }
+
+      // Extract frame from video
+      const videoResponse = await fetch(product.video_url);
+      const videoBlob = await videoResponse.blob();
+      const videoFile = new File([videoBlob], 'video.mp4', { type: 'video/mp4' });
+      
+      // Extract the first frame as WebP
+      const { webpBlob } = await extractVideoFrame(videoFile);
+
+      // Create a new product
+      const { data: newProduct, error: insertError } = await supabase
         .from("products")
         .insert([
           {
@@ -287,14 +304,42 @@ export function ProductManagement() {
             stock: product.stock,
             regular_price: product.regular_price,
             shipping_price: product.shipping_price,
-            primary_media_type: "image",
-            media: [],
+            video_url: product.video_url,
+            primary_media_type: "video",
           },
         ])
         .select()
         .single();
 
-      if (error) throw error;
+      if (insertError) throw insertError;
+
+      // Upload the extracted frame
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('media')
+        .upload(`products/${newProduct.id}/thumbnail.webp`, webpBlob, {
+          contentType: 'image/webp',
+          upsert: true
+        });
+
+      if (uploadError) throw uploadError;
+
+      // Get the public URL for the uploaded image
+      const { data: { publicUrl: imageUrl } } = supabase.storage
+        .from('media')
+        .getPublicUrl(`products/${newProduct.id}/thumbnail.webp`);
+
+      // Update the product with the image URL
+      const { error: updateError } = await supabase
+        .from("products")
+        .update({
+          image_url: imageUrl,
+          media: {
+            webp: imageUrl
+          }
+        })
+        .eq("id", newProduct.id);
+
+      if (updateError) throw updateError;
 
       await queryClient.invalidateQueries({ queryKey: ["products"] });
       setShowAddDialog(false);
