@@ -4,6 +4,9 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { X, Image, Download } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { Tables } from "@/integrations/supabase/types";
 import {
   Carousel,
   CarouselContent,
@@ -55,6 +58,22 @@ export const ProductCard = ({
   const dragY = useMotionValue(0);
   const dragOpacity = useTransform(dragY, [0, 200], [1, 0]);
   const dragScale = useTransform(dragY, [0, 200], [1, 0.95]);
+
+  // Fetch site settings
+  const { data: siteSettings } = useQuery({
+    queryKey: ['site_settings'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('site_settings')
+        .select('show_downloads')
+        .single();
+      
+      if (error) throw error;
+      return data as unknown as { show_downloads: boolean };
+    }
+  });
+
+  const showDownloads = siteSettings?.show_downloads ?? false;
 
   const validCategories = categories?.filter(category => category && category.trim() !== '') || [];
   const mediaItems = [];
@@ -207,7 +226,7 @@ export const ProductCard = ({
                         playsInline
                         muted={false}
                         autoPlay
-                        className="max-h-[50vh] w-auto hover:controls group-hover:controls"
+                        className="max-h-[50vh] w-auto hover:controls group-hover:controls rounded-xl"
                         onMouseEnter={(e) => e.currentTarget.controls = true}
                         onMouseLeave={(e) => e.currentTarget.controls = false}
                       />
@@ -224,7 +243,7 @@ export const ProductCard = ({
                       <img
                         src={item.url}
                         alt={name}
-                        className="max-h-[50vh] w-auto"
+                        className="max-h-[50vh] w-auto rounded-xl"
                         onError={handleImageError}
                       />
                     </picture>
@@ -271,30 +290,32 @@ export const ProductCard = ({
                 {stock} in stock
               </div>
             )}
-            <div className="flex gap-2">
-              {video && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="text-xs px-2 py-1 h-8"
-                  onClick={() => handleDownload(video, 'video')}
-                >
-                  <Download className="h-3 w-3 mr-1" />
-                  Download Video
-                </Button>
-              )}
-              {image && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="text-xs px-2 py-1 h-8"
-                  onClick={() => handleDownload(image, 'image')}
-                >
-                  <Download className="h-3 w-3 mr-1" />
-                  Download Image
-                </Button>
-              )}
-            </div>
+            {showDownloads && (
+              <div className="flex gap-2">
+                {video && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-xs px-2 py-1 h-8"
+                    onClick={() => handleDownload(video, 'video')}
+                  >
+                    <Download className="h-3 w-3 mr-1" />
+                    Download Video
+                  </Button>
+                )}
+                {image && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-xs px-2 py-1 h-8"
+                    onClick={() => handleDownload(image, 'image')}
+                  >
+                    <Download className="h-3 w-3 mr-1" />
+                    Download Image
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
