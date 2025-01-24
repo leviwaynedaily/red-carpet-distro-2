@@ -4,7 +4,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { ProductCard } from "@/components/ProductCard";
-import { ProductInfo } from "@/components/product-details/ProductInfo";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function ProductDetails() {
@@ -85,34 +84,21 @@ export default function ProductDetails() {
         Back
       </Button>
 
-      <div className={`grid ${isMobile ? 'grid-rows-[auto_1fr] gap-2' : 'grid-cols-2 gap-8'} h-[calc(100vh-4rem)]`}>
-        <div className={`${isMobile ? 'h-[45vh]' : 'md:sticky md:top-24'} overflow-hidden`}>
-          <ProductCard
-            id={product.id}
-            name={product.name}
-            description={product.description}
-            image={product.image_url}
-            video={product.video_url}
-            categories={product.categories}
-            strain={product.strain}
-            stock={product.stock}
-            regular_price={product.regular_price}
-            shipping_price={product.shipping_price}
-            viewMode="large"
-            media={product.media}
-          />
-        </div>
-        <div className={`${isMobile ? 'h-[45vh]' : ''} overflow-y-auto`}>
-          <ProductInfo
-            name={product.name}
-            description={product.description}
-            categories={product.categories}
-            strain={product.strain}
-            regularPrice={product.regular_price}
-            shippingPrice={product.shipping_price}
-            stock={product.stock}
-          />
-        </div>
+      <div className="h-[calc(100vh-4rem)]">
+        <ProductCard
+          id={product.id}
+          name={product.name}
+          description={product.description}
+          image={product.image_url}
+          video={product.video_url}
+          categories={product.categories}
+          strain={product.strain}
+          stock={product.stock}
+          regular_price={product.regular_price}
+          shipping_price={product.shipping_price}
+          viewMode="large"
+          media={product.media}
+        />
       </div>
     </div>
   );

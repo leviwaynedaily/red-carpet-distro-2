@@ -206,7 +206,8 @@ export const ProductCard = ({
                         src={item.url}
                         controls
                         playsInline
-                        autoPlay={isPlaying}
+                        muted={false}
+                        autoPlay
                         className="max-h-[50vh] w-auto"
                       />
                     </div>
@@ -367,14 +368,6 @@ export const ProductCard = ({
               <div className="absolute left-0 right-0 h-12 -top-8" />
             </motion.div>
           )}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleClose}
-            className="absolute right-4 top-4 h-10 w-10 rounded-full z-50"
-          >
-            <X className="h-6 w-6" />
-          </Button>
           <motion.div
             style={{ 
               opacity: dragOpacity,

@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { AddProductDialog } from "./product-table/AddProductDialog";
 import { downloadTemplate, exportProducts, parseCSV } from "@/utils/csvUtils";
+import { extractVideoFrame } from "@/utils/imageUtils";
 
 type Product = Tables<"products">;
 
@@ -163,6 +164,17 @@ export function ProductManagement() {
         .eq("id", productId);
 
       if (error) throw error;
+
+      // Update local state
+      if (products) {
+        const updatedProducts = products.map(p => 
+          p.id === productId 
+            ? { ...p, image_url: url }
+            : p
+        );
+        queryClient.setQueryData(["products"], updatedProducts);
+      }
+
       toast.success("Image uploaded successfully");
     } catch (error) {
       console.error("Error uploading image:", error);
@@ -173,13 +185,95 @@ export function ProductManagement() {
   const handleVideoUpload = async (productId: string, url: string) => {
     console.log("ProductManagement: Uploading video for product:", productId);
     try {
+      // First get the product name
+      const { data: product, error: productError } = await supabase
+        .from("products")
+        .select("name")
+        .eq("id", productId)
+        .single();
+
+      if (productError) throw productError;
+      if (!product?.name) throw new Error("Product name not found");
+
+      // Create a URL-safe filename from the product name
+      const safeFileName = product.name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '');
+
+      // Fetch the video file
+      const response = await fetch(url);
+      const videoBlob = await response.blob();
+      const videoFile = new File([videoBlob], `${safeFileName}.mp4`, { type: videoBlob.type });
+
+      // Extract the first frame
+      const { webpBlob } = await extractVideoFrame(videoFile);
+
+      // Upload the frame as WebP
+      const webpFile = new File([webpBlob], `${safeFileName}.webp`, { type: 'image/webp' });
+      const { error: webpError } = await supabase.storage
+        .from("media")
+        .upload(`products/${productId}/${safeFileName}.webp`, webpFile, {
+          contentType: 'image/webp',
+          upsert: true
+        });
+
+      if (webpError) throw webpError;
+
+      // Get public URL
+      const { data: { publicUrl: webpUrl } } = supabase.storage
+        .from("media")
+        .getPublicUrl(`products/${productId}/${safeFileName}.webp`);
+
+      // Upload the video with the same name pattern
+      const { error: videoError } = await supabase.storage
+        .from("media")
+        .upload(`products/${productId}/${safeFileName}.mp4`, videoFile, {
+          contentType: videoBlob.type,
+          upsert: true
+        });
+
+      if (videoError) throw videoError;
+
+      // Get video public URL
+      const { data: { publicUrl: videoUrl } } = supabase.storage
+        .from("media")
+        .getPublicUrl(`products/${productId}/${safeFileName}.mp4`);
+
+      // Update product with both video and image URLs
       const { error } = await supabase
         .from("products")
-        .update({ video_url: url })
+        .update({ 
+          video_url: videoUrl,
+          image_url: webpUrl,
+          media: {
+            original: webpUrl,
+            webp: webpUrl
+          }
+        })
         .eq("id", productId);
 
       if (error) throw error;
-      toast.success("Video uploaded successfully");
+
+      // Update local state
+      if (products) {
+        const updatedProducts = products.map(p => 
+          p.id === productId 
+            ? { 
+                ...p, 
+                video_url: videoUrl, 
+                image_url: webpUrl,
+                media: {
+                  original: webpUrl,
+                  webp: webpUrl
+                }
+              }
+            : p
+        );
+        queryClient.setQueryData(["products"], updatedProducts);
+      }
+
+      toast.success("Video uploaded and thumbnail generated successfully");
     } catch (error) {
       console.error("Error uploading video:", error);
       toast.error("Failed to upload video");
