@@ -21,6 +21,7 @@ export interface ProductEditDialogProps {
   onMediaUpload: (productId: string, file: File) => Promise<void>;
   onDeleteMedia: (productId: string, type: "image" | "video") => void;
   isSaving?: boolean;
+  onMediaClick?: (type: "image" | "video", url: string) => void;
 }
 
 // Add timestamp to URLs to prevent caching
@@ -42,6 +43,7 @@ export function ProductEditDialog({
   onMediaUpload,
   onDeleteMedia,
   isSaving = false,
+  onMediaClick,
 }: ProductEditDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -121,22 +123,15 @@ export function ProductEditDialog({
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label className="text-sm text-muted-foreground mb-2 block">Image</Label>
-                <div className="relative">
+                <div className="relative group w-24">
                   {editValues.image_url ? (
-                    <div className="relative group">
+                    <div className="relative">
                       <img
                         src={addVersionToUrl(editValues.image_url)}
                         alt={product.name}
-                        className="h-24 w-24 object-cover rounded-lg"
+                        className="h-24 w-24 object-cover rounded-lg cursor-pointer"
+                        onClick={() => onMediaClick?.("image", editValues.image_url!)}
                       />
-                      <Button
-                        variant="destructive"
-                        size="icon"
-                        className="h-6 w-6 absolute -top-2 -right-2 hidden group-hover:flex"
-                        onClick={() => onDeleteMedia(product.id, 'image')}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
                     </div>
                   ) : (
                     <FileUpload
@@ -153,39 +148,38 @@ export function ProductEditDialog({
                       skipUpload={true}
                     />
                   )}
+                  <Button
+                    variant="destructive"
+                    size="icon"
+                    className="h-6 w-6 absolute -top-2 -right-2 hidden group-hover:flex"
+                    onClick={() => onDeleteMedia(product.id, 'image')}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
                 </div>
               </div>
 
               <div>
                 <Label className="text-sm text-muted-foreground mb-2 block">Video</Label>
-                <div className="relative">
+                <div className="relative group w-24">
                   {editValues.video_url ? (
-                    <div className="relative group">
+                    <div className="relative">
                       {editValues.image_url ? (
                         <div className="relative">
                           <img
                             src={addVersionToUrl(editValues.image_url)}
                             alt={`${product.name} preview`}
-                            className="h-24 w-24 object-cover rounded-lg"
+                            className="h-24 w-24 object-cover rounded-lg cursor-pointer"
+                            onClick={() => onMediaClick?.("video", editValues.video_url!)}
                           />
-                          <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors rounded-lg flex items-center justify-center">
-                            <Play className="h-8 w-8 text-white" />
-                          </div>
                         </div>
                       ) : (
                         <video
                           src={addVersionToUrl(editValues.video_url)}
-                          className="h-24 w-24 object-cover rounded-lg"
+                          className="h-24 w-24 object-cover rounded-lg cursor-pointer"
+                          onClick={() => onMediaClick?.("video", editValues.video_url!)}
                         />
                       )}
-                      <Button
-                        variant="destructive"
-                        size="icon"
-                        className="h-6 w-6 absolute -top-2 -right-2 hidden group-hover:flex"
-                        onClick={() => onDeleteMedia(product.id, 'video')}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
                     </div>
                   ) : (
                     <FileUpload
@@ -202,6 +196,14 @@ export function ProductEditDialog({
                       skipUpload={true}
                     />
                   )}
+                  <Button
+                    variant="destructive"
+                    size="icon"
+                    className="h-6 w-6 absolute -top-2 -right-2 hidden group-hover:flex"
+                    onClick={() => onDeleteMedia(product.id, 'video')}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
                 </div>
               </div>
             </div>
