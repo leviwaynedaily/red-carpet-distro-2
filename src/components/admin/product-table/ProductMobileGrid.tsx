@@ -80,18 +80,6 @@ export function ProductMobileGrid({
       <div className="grid grid-cols-2 gap-4">
         {products.map((product) => (
           <div key={product.id} className="bg-white p-4 rounded-lg shadow">
-            <ProductTableCell
-              key="image"
-              column="image"
-              product={product}
-              isEditing={editingProduct === product.id}
-              editValues={editValues}
-              onEditChange={onEditChange}
-              onMediaUpload={onMediaUpload}
-              onDeleteMedia={onDeleteMedia}
-              onMediaClick={onMediaClick}
-              isUploading={uploadingMedia[product.id]}
-            />
             <AdminProductCard
               {...product}
               onUpdate={() => {

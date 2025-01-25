@@ -46,94 +46,13 @@ export function ProductEditDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <Label>Image</Label>
-            <div className="mt-2">
-              {editValues.image_url ? (
-                <div className="relative group">
-                  <img
-                    src={addVersionToUrl(editValues.image_url)}
-                    alt={product.name}
-                    className="w-full aspect-square object-cover rounded-lg"
-                  />
-                  <Button
-                    variant="destructive"
-                    size="icon"
-                    className="h-8 w-8 absolute top-2 right-2"
-                    onClick={() => onDeleteMedia(product.id, 'image')}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              ) : (
-                <FileUpload
-                  onUploadComplete={async (file: File) => {
-                    try {
-                      await onMediaUpload(product.id, file);
-                    } catch (error) {
-                      console.error('Error uploading media:', error);
-                    }
-                  }}
-                  accept="image/*"
-                  bucket="media"
-                  className="w-full"
-                  skipUpload={true}
-                />
-              )}
-            </div>
-          </div>
+        <DialogHeader>
+          <DialogTitle>Edit Product</DialogTitle>
+        </DialogHeader>
 
-          <div>
-            <Label>Video</Label>
-            <div className="mt-2">
-              {editValues.video_url ? (
-                <div className="relative group">
-                  {editValues.image_url ? (
-                    <div className="relative">
-                      <img
-                        src={addVersionToUrl(editValues.image_url)}
-                        alt={`${product.name} preview`}
-                        className="w-full aspect-square object-cover rounded-lg"
-                      />
-                      <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors rounded-lg flex items-center justify-center">
-                        <Play className="h-12 w-12 text-white" />
-                      </div>
-                    </div>
-                  ) : (
-                    <video
-                      src={addVersionToUrl(editValues.video_url)}
-                      className="w-full aspect-square object-cover rounded-lg"
-                    />
-                  )}
-                  <Button
-                    variant="destructive"
-                    size="icon"
-                    className="h-8 w-8 absolute top-2 right-2"
-                    onClick={() => onDeleteMedia(product.id, 'video')}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              ) : (
-                <FileUpload
-                  onUploadComplete={async (file: File) => {
-                    try {
-                      await onMediaUpload(product.id, file);
-                    } catch (error) {
-                      console.error('Error uploading media:', error);
-                    }
-                  }}
-                  accept="video/*"
-                  bucket="media"
-                  className="w-full"
-                  skipUpload={true}
-                />
-              )}
-            </div>
-          </div>
-
-          <div className="grid gap-4 py-4">
+        <div className="grid gap-4">
+          {/* Form Fields */}
+          <div className="grid gap-4">
             <div className="grid gap-2">
               <Label htmlFor="name">Name</Label>
               <Input
@@ -161,40 +80,135 @@ export function ProductEditDialog({
               />
             </div>
 
-            <div className="grid gap-2">
-              <Label htmlFor="stock">Stock</Label>
-              <Input
-                id="stock"
-                type="number"
-                value={editValues.stock?.toString() || '0'}
-                onChange={(e) => onEditChange({ ...editValues, stock: parseInt(e.target.value) })}
-              />
-            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="stock">Stock</Label>
+                <Input
+                  id="stock"
+                  type="number"
+                  value={editValues.stock?.toString() || '0'}
+                  onChange={(e) => onEditChange({ ...editValues, stock: parseInt(e.target.value) })}
+                />
+              </div>
 
-            <div className="grid gap-2">
-              <Label htmlFor="regular_price">Regular Price</Label>
-              <Input
-                id="regular_price"
-                type="number"
-                step="0.01"
-                value={editValues.regular_price?.toString() || '0'}
-                onChange={(e) => onEditChange({ ...editValues, regular_price: parseFloat(e.target.value) })}
-              />
-            </div>
+              <div className="grid gap-2">
+                <Label htmlFor="regular_price">Regular Price</Label>
+                <Input
+                  id="regular_price"
+                  type="number"
+                  step="0.01"
+                  value={editValues.regular_price?.toString() || '0'}
+                  onChange={(e) => onEditChange({ ...editValues, regular_price: parseFloat(e.target.value) })}
+                />
+              </div>
 
-            <div className="grid gap-2">
-              <Label htmlFor="shipping_price">Shipping Price</Label>
-              <Input
-                id="shipping_price"
-                type="number"
-                step="0.01"
-                value={editValues.shipping_price?.toString() || '0'}
-                onChange={(e) => onEditChange({ ...editValues, shipping_price: parseFloat(e.target.value) })}
-              />
+              <div className="grid gap-2">
+                <Label htmlFor="shipping_price">Shipping Price</Label>
+                <Input
+                  id="shipping_price"
+                  type="number"
+                  step="0.01"
+                  value={editValues.shipping_price?.toString() || '0'}
+                  onChange={(e) => onEditChange({ ...editValues, shipping_price: parseFloat(e.target.value) })}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Media Section - Now at the bottom */}
+          <div className="border-t pt-4">
+            <Label className="mb-2 block">Media</Label>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-sm text-muted-foreground mb-2 block">Image</Label>
+                <div className="relative">
+                  {editValues.image_url ? (
+                    <div className="relative group">
+                      <img
+                        src={addVersionToUrl(editValues.image_url)}
+                        alt={product.name}
+                        className="h-24 w-24 object-cover rounded-lg"
+                      />
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        className="h-6 w-6 absolute -top-2 -right-2 hidden group-hover:flex"
+                        onClick={() => onDeleteMedia(product.id, 'image')}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <FileUpload
+                      onUploadComplete={async (file: File) => {
+                        try {
+                          await onMediaUpload(product.id, file);
+                        } catch (error) {
+                          console.error('Error uploading media:', error);
+                        }
+                      }}
+                      accept="image/*"
+                      bucket="media"
+                      className="w-24 h-24"
+                      skipUpload={true}
+                    />
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <Label className="text-sm text-muted-foreground mb-2 block">Video</Label>
+                <div className="relative">
+                  {editValues.video_url ? (
+                    <div className="relative group">
+                      {editValues.image_url ? (
+                        <div className="relative">
+                          <img
+                            src={addVersionToUrl(editValues.image_url)}
+                            alt={`${product.name} preview`}
+                            className="h-24 w-24 object-cover rounded-lg"
+                          />
+                          <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors rounded-lg flex items-center justify-center">
+                            <Play className="h-8 w-8 text-white" />
+                          </div>
+                        </div>
+                      ) : (
+                        <video
+                          src={addVersionToUrl(editValues.video_url)}
+                          className="h-24 w-24 object-cover rounded-lg"
+                        />
+                      )}
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        className="h-6 w-6 absolute -top-2 -right-2 hidden group-hover:flex"
+                        onClick={() => onDeleteMedia(product.id, 'video')}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <FileUpload
+                      onUploadComplete={async (file: File) => {
+                        try {
+                          await onMediaUpload(product.id, file);
+                        } catch (error) {
+                          console.error('Error uploading media:', error);
+                        }
+                      }}
+                      accept="video/*"
+                      bucket="media"
+                      className="w-24 h-24"
+                      skipUpload={true}
+                    />
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </div>
-        <div className="flex justify-end gap-2">
+
+        <div className="flex justify-end gap-2 mt-4">
           <Button variant="outline" onClick={onCancel} disabled={isSaving}>
             Cancel
           </Button>

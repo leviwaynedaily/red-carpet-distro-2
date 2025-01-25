@@ -138,26 +138,10 @@ export function ProductTableCell({
               <div className="relative group">
                 {product.video_url && (
                   <div className="relative">
-                    {product.image_url ? (
-                      <div className="relative">
-                        <img
-                          src={addVersionToUrl(product.image_url)}
-                          alt={`${product.name} preview`}
-                          className="h-12 w-12 object-cover rounded-lg cursor-pointer"
-                          onClick={() => onMediaClick?.("video", product.video_url!)}
-                        />
-                        <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors rounded-lg flex items-center justify-center">
-                          <Play className="h-6 w-6 text-white" />
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="relative">
-                        <div className="h-12 w-12 bg-gray-100 rounded-lg flex items-center justify-center cursor-pointer"
-                             onClick={() => onMediaClick?.("video", product.video_url!)}>
-                          <Play className="h-6 w-6 text-gray-400" />
-                        </div>
-                      </div>
-                    )}
+                    <div className="h-12 w-12 bg-gray-100 rounded-lg flex items-center justify-center cursor-pointer"
+                         onClick={() => onMediaClick?.("video", product.video_url!)}>
+                      <Play className="h-6 w-6 text-gray-400" />
+                    </div>
                     {isEditing && (
                       <Button
                         variant="destructive"

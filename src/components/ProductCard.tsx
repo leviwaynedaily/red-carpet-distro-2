@@ -11,8 +11,6 @@ import {
   Carousel,
   CarouselContent,
   CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
 } from "@/components/ui/carousel";
 
 interface ProductCardProps {
@@ -255,8 +253,6 @@ export const ProductCard = ({
                   </CarouselItem>
                 ))}
               </CarouselContent>
-              <CarouselPrevious />
-              <CarouselNext />
             </Carousel>
           ) : (
             mediaItems.map((item, index) => (
@@ -411,9 +407,11 @@ export const ProductCard = ({
         <Sheet open={showMedia} onOpenChange={setShowMedia}>
           <SheetContent 
             side="right" 
-            className="w-[90vw] max-w-4xl p-0 max-h-[85vh]"
+            className="w-[90vw] max-w-4xl p-0 h-screen"
           >
-            {renderMediaContent()}
+            <div className="pt-8">
+              {renderMediaContent()}
+            </div>
           </SheetContent>
         </Sheet>
       )}
