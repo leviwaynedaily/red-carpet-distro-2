@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { LogOut, Home } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function Admin() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -18,6 +19,7 @@ export default function Admin() {
   const [backgroundColor, setBackgroundColor] = useState("#FFFFFF");
   const [backgroundOpacity, setBackgroundOpacity] = useState("1"); // Changed to string type
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     // Check for stored authentication state when component mounts
@@ -156,19 +158,21 @@ export default function Admin() {
           <div className="space-x-2">
             <Button 
               variant="outline" 
-              size="icon"
               onClick={handleLogout}
+              size={isMobile ? "icon" : "default"}
               title="Logout"
             >
               <LogOut className="h-4 w-4" />
+              {!isMobile && <span className="ml-2">Logout</span>}
             </Button>
             <Button 
               variant="outline" 
-              size="icon"
               onClick={() => navigate("/")}
+              size={isMobile ? "icon" : "default"}
               title="Back to Site"
             >
               <Home className="h-4 w-4" />
+              {!isMobile && <span className="ml-2">Back to Site</span>}
             </Button>
           </div>
         </div>

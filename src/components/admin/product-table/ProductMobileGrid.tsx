@@ -7,18 +7,17 @@ import { toast } from "sonner";
 type Product = Tables<"products">;
 
 interface ProductMobileGridProps {
-  products: (Product & { categories?: string[] })[];
-  onEditStart: (product: Product & { categories?: string[] }) => void;
-  onEditSave: () => void;
+  products: Product[];
+  onEditStart: (product: Product) => Promise<void>;
+  onEditSave: () => Promise<void>;
   onEditCancel: () => void;
-  onEditChange: (values: Partial<Product> & { categories?: string[] }) => void;
+  onEditChange: (values: Partial<Product>) => void;
   editingProduct: string | null;
-  editValues: Partial<Product> & { categories?: string[] };
+  editValues: Partial<Product>;
   onDelete: (id: string) => void;
-  onImageUpload: (productId: string, url: string) => void;
-  onVideoUpload: (productId: string, url: string) => void;
-  onDeleteMedia: (productId: string, type: 'image' | 'video') => void;
-  onMediaClick: (type: 'image' | 'video', url: string) => void;
+  onMediaUpload: (productId: string, file: File) => Promise<void>;
+  onDeleteMedia: (productId: string, type: "image" | "video") => void;
+  onMediaClick: (type: "image" | "video", url: string) => void;
 }
 
 export function ProductMobileGrid({
@@ -30,26 +29,35 @@ export function ProductMobileGrid({
   editingProduct,
   editValues,
   onDelete,
-  onImageUpload,
-  onVideoUpload,
+  onMediaUpload,
   onDeleteMedia,
   onMediaClick,
 }: ProductMobileGridProps) {
   const [showEditDialog, setShowEditDialog] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState<(Product & { categories?: string[] }) | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
-  const handleEditStart = (product: Product & { categories?: string[] }) => {
+  const handleEditStart = async (product: Product) => {
     console.log('ProductMobileGrid: Starting edit for product:', product.id);
     setSelectedProduct(product);
-    onEditStart(product);
+    await onEditStart(product);
     setShowEditDialog(true);
   };
 
   const handleEditSave = async () => {
     console.log('ProductMobileGrid: Saving edit for product:', selectedProduct?.id);
-    onEditSave();
-    setShowEditDialog(false);
-    setSelectedProduct(null);
+    setIsSaving(true);
+    try {
+      await onEditSave();
+      setShowEditDialog(false);
+      setSelectedProduct(null);
+      toast.success('Product updated successfully');
+    } catch (error) {
+      console.error('ProductMobileGrid: Error saving product:', error);
+      toast.error('Failed to update product');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleEditCancel = () => {
@@ -97,9 +105,9 @@ export function ProductMobileGrid({
           onEditChange={onEditChange}
           onSave={handleEditSave}
           onCancel={handleEditCancel}
-          onImageUpload={onImageUpload}
-          onVideoUpload={onVideoUpload}
+          onMediaUpload={onMediaUpload}
           onDeleteMedia={onDeleteMedia}
+          isSaving={isSaving}
         />
       )}
     </>

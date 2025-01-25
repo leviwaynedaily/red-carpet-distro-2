@@ -27,22 +27,15 @@ interface MultiSelectProps {
   placeholder?: string;
 }
 
-export function MultiSelect({ options = [], value = [], onChange, placeholder }: MultiSelectProps) {
+export function MultiSelect({ options, value, onChange, placeholder }: MultiSelectProps) {
   const [open, setOpen] = React.useState(false);
-  const [searchQuery, setSearchQuery] = React.useState("");
 
-  const filteredOptions = React.useMemo(() => {
-    return options.filter((option) =>
-      option.label.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [options, searchQuery]);
-
-  const handleSelect = React.useCallback((currentValue: string) => {
+  const handleSelect = (currentValue: string) => {
     const newValue = value.includes(currentValue)
       ? value.filter((v) => v !== currentValue)
       : [...value, currentValue];
     onChange(newValue);
-  }, [value, onChange]);
+  };
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -59,19 +52,14 @@ export function MultiSelect({ options = [], value = [], onChange, placeholder }:
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-full p-0" align="start">
-        <Command shouldFilter={false}>
-          <CommandInput 
-            placeholder="Search..." 
-            value={searchQuery}
-            onValueChange={setSearchQuery}
-          />
+      <PopoverContent className="w-full p-0">
+        <Command>
+          <CommandInput placeholder="Search..." />
           <CommandEmpty>No items found.</CommandEmpty>
           <CommandGroup className="max-h-64 overflow-auto">
-            {filteredOptions.map((option) => (
+            {options.map((option) => (
               <CommandItem
                 key={option.value}
-                value={option.value}
                 onSelect={() => handleSelect(option.value)}
               >
                 <Check

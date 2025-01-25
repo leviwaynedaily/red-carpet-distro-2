@@ -166,6 +166,7 @@ export type Database = {
           toolbar_opacity: number | null
           updated_at: string
           welcome_instructions: Json | null
+          show_downloads: boolean
         }
         Insert: {
           admin_password?: string | null
@@ -212,6 +213,7 @@ export type Database = {
           toolbar_opacity?: number | null
           updated_at?: string
           welcome_instructions?: Json | null
+          show_downloads?: boolean
         }
         Update: {
           admin_password?: string | null
@@ -258,6 +260,7 @@ export type Database = {
           toolbar_opacity?: number | null
           updated_at?: string
           welcome_instructions?: Json | null
+          show_downloads?: boolean
         }
         Relationships: []
       }

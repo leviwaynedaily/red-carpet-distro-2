@@ -7,7 +7,6 @@ interface AdminProductCardProps {
   name: string;
   description: string;
   image_url?: string | null;
-  categories?: string[];
   strain?: string;
   stock?: number;
   regular_price?: number;
@@ -23,7 +22,6 @@ export const AdminProductCard = ({
   name,
   description,
   image_url,
-  categories,
   strain,
   stock,
   regular_price,
@@ -94,9 +92,6 @@ export const AdminProductCard = ({
         <h3 className="font-bold truncate">{name}</h3>
         <p className="text-sm text-gray-600 line-clamp-2 mt-1">{description}</p>
         <div className="mt-2 space-y-1 text-sm text-gray-600">
-          {categories?.length > 0 && (
-            <div>Categories: {categories.join(', ')}</div>
-          )}
           {strain && <div>Strain: {strain}</div>}
           {stock !== undefined && <div>Stock: {stock}</div>}
           {regular_price !== undefined && <div>Price: {formatPrice(regular_price)}</div>}

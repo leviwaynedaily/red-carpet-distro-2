@@ -1,12 +1,12 @@
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { X, Image, Download } from "lucide-react";
+import { useState, useEffect } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Tables } from "@/integrations/supabase/types";
 import {
   Carousel,
   CarouselContent,
@@ -14,7 +14,6 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/carousel";
-import { motion, useMotionValue, useTransform } from "framer-motion";
 
 interface ProductCardProps {
   id: string;
@@ -54,12 +53,7 @@ export const ProductCard = ({
   const [isPlaying, setIsPlaying] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [webpError, setWebpError] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
-  const dragY = useMotionValue(0);
-  const dragOpacity = useTransform(dragY, [0, 200], [1, 0]);
-  const dragScale = useTransform(dragY, [0, 200], [1, 0.95]);
 
-  // Fetch site settings
   const { data: siteSettings } = useQuery({
     queryKey: ['site_settings'],
     queryFn: async () => {
@@ -67,41 +61,53 @@ export const ProductCard = ({
         .from('site_settings')
         .select('show_downloads')
         .single();
-      
-      if (error) throw error;
-      return data as unknown as { show_downloads: boolean };
-    }
-  });
 
-  const showDownloads = siteSettings?.show_downloads ?? false;
+      if (error) throw error;
+      return data;
+    },
+  });
 
   const validCategories = categories?.filter(category => category && category.trim() !== '') || [];
   const mediaItems = [];
   
+  // Add timestamp to URLs to prevent caching
+  const addVersionToUrl = (url: string) => {
+    if (!url) return url;
+    const timestamp = new Date().getTime();
+    const separator = url.includes('?') ? '&' : '?';
+    return `${url}${separator}v=${timestamp}`;
+  };
+  
   if (video) {
-    mediaItems.push({ type: 'video', url: video });
+    mediaItems.push({ type: 'video', url: addVersionToUrl(video) });
   }
   
   if (image) {
-    mediaItems.push({ type: 'image', url: image, webp: media?.webp });
+    mediaItems.push({ 
+      type: 'image', 
+      url: addVersionToUrl(image), 
+      webp: media?.webp ? addVersionToUrl(media.webp) : undefined 
+    });
   }
+
+  useEffect(() => {
+    if (showMedia && video) {
+      setIsPlaying(true);
+    } else {
+      setIsPlaying(false);
+    }
+  }, [showMedia, video]);
 
   const handleClose = () => {
     setShowMedia(false);
     setIsPlaying(false);
   };
 
-  const handleDragEnd = () => {
-    if (dragY.get() > 150) {
-      handleClose();
-    }
-    dragY.set(0);
-    setIsDragging(false);
-  };
-
   const handleDownload = async (url: string, type: 'image' | 'video') => {
     try {
-      const response = await fetch(url);
+      // Remove version parameter for downloads
+      const cleanUrl = url.split('?')[0];
+      const response = await fetch(cleanUrl);
       const blob = await response.blob();
       const blobUrl = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -194,13 +200,13 @@ export const ProductCard = ({
         <picture>
           {media?.webp && !webpError && (
             <source
-              srcSet={media.webp}
+              srcSet={addVersionToUrl(media.webp)}
               type="image/webp"
               onError={handleWebPError}
             />
           )}
           <img
-            src={image}
+            src={addVersionToUrl(image)}
             alt={name}
             className={imageClasses[viewMode]}
             loading="lazy"
@@ -214,59 +220,84 @@ export const ProductCard = ({
   const renderMediaContent = () => {
     return (
       <div className="flex flex-col h-full">
-        <div className="flex-none">
-          <Carousel className="w-full">
-            <CarouselContent>
-              {mediaItems.map((item, index) => (
-                <CarouselItem key={index} className="flex justify-center items-center">
-                  {item.type === 'video' ? (
-                    <div className="w-full flex justify-center mt-14 group">
+        <div className="relative">
+          {mediaItems.length > 1 ? (
+            <Carousel className="w-full">
+              <CarouselContent>
+                {mediaItems.map((item, index) => (
+                  <CarouselItem key={index}>
+                    {item.type === 'video' ? (
                       <video
                         src={item.url}
-                        playsInline
-                        muted={false}
+                        className="max-h-[50vh] w-auto mx-auto rounded-lg"
                         autoPlay
-                        className="max-h-[50vh] w-auto hover:controls group-hover:controls rounded-xl"
-                        onMouseEnter={(e) => e.currentTarget.controls = true}
-                        onMouseLeave={(e) => e.currentTarget.controls = false}
+                        playsInline
+                        loop
+                        muted
                       />
-                    </div>
-                  ) : (
-                    <picture className="flex justify-center mt-14">
-                      {item.webp && !webpError && (
-                        <source
-                          srcSet={item.webp}
-                          type="image/webp"
-                          onError={handleWebPError}
+                    ) : (
+                      <picture>
+                        {item.webp && !webpError && (
+                          <source
+                            srcSet={item.webp}
+                            type="image/webp"
+                            onError={handleWebPError}
+                          />
+                        )}
+                        <img
+                          src={item.url}
+                          alt={name}
+                          className="max-h-[50vh] w-auto mx-auto rounded-lg"
+                          onError={handleImageError}
                         />
-                      )}
-                      <img
-                        src={item.url}
-                        alt={name}
-                        className="max-h-[50vh] w-auto rounded-xl"
-                        onError={handleImageError}
+                      </picture>
+                    )}
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
+              <CarouselPrevious />
+              <CarouselNext />
+            </Carousel>
+          ) : (
+            mediaItems.map((item, index) => (
+              <div key={index} className="flex justify-center">
+                {item.type === 'video' ? (
+                  <video
+                    src={item.url}
+                    className="max-h-[50vh] w-auto rounded-lg"
+                    autoPlay
+                    playsInline
+                    loop
+                    muted
+                  />
+                ) : (
+                  <picture>
+                    {item.webp && !webpError && (
+                      <source
+                        srcSet={item.webp}
+                        type="image/webp"
+                        onError={handleWebPError}
                       />
-                    </picture>
-                  )}
-                </CarouselItem>
-              ))}
-            </CarouselContent>
-            {mediaItems.length > 1 && (
-              <>
-                <CarouselPrevious className="left-2" />
-                <CarouselNext className="right-2" />
-              </>
-            )}
-          </Carousel>
+                    )}
+                    <img
+                      src={item.url}
+                      alt={name}
+                      className="max-h-[50vh] w-auto rounded-lg"
+                      onError={handleImageError}
+                    />
+                  </picture>
+                )}
+              </div>
+            ))
+          )}
         </div>
-
         <div className="flex-1 overflow-y-auto p-6 bg-white">
           {validCategories.length > 0 && (
             <div className="flex flex-wrap gap-1 mb-2">
               {validCategories.map((category) => (
-                <div key={category} className="bg-secondary text-secondary-foreground px-2 py-1 rounded-md text-xs">
+                <Badge key={category} variant="secondary" className="text-xs">
                   {category.trim()}
-                </div>
+                </Badge>
               ))}
             </div>
           )}
@@ -290,16 +321,15 @@ export const ProductCard = ({
                 {stock} in stock
               </div>
             )}
-            {showDownloads && (
+            {siteSettings?.show_downloads && (
               <div className="flex gap-2">
                 {video && (
                   <Button
                     size="sm"
                     variant="outline"
-                    className="text-xs px-2 py-1 h-8"
                     onClick={() => handleDownload(video, 'video')}
                   >
-                    <Download className="h-3 w-3 mr-1" />
+                    <Download className="h-4 w-4 mr-2" />
                     Download Video
                   </Button>
                 )}
@@ -307,10 +337,9 @@ export const ProductCard = ({
                   <Button
                     size="sm"
                     variant="outline"
-                    className="text-xs px-2 py-1 h-8"
                     onClick={() => handleDownload(image, 'image')}
                   >
-                    <Download className="h-3 w-3 mr-1" />
+                    <Download className="h-4 w-4 mr-2" />
                     Download Image
                   </Button>
                 )}
@@ -335,9 +364,9 @@ export const ProductCard = ({
           {validCategories.length > 0 && (
             <div className="flex flex-wrap gap-1 mb-2">
               {validCategories.map((category) => (
-                <div key={category} className="bg-secondary text-secondary-foreground px-2 py-1 rounded-md text-xs">
+                <Badge key={category} variant="secondary" className="text-xs">
                   {category.trim()}
-                </div>
+                </Badge>
               ))}
             </div>
           )}
@@ -361,45 +390,33 @@ export const ProductCard = ({
         </CardContent>
       </Card>
 
-      <Sheet open={showMedia} onOpenChange={setShowMedia}>
-        <SheetContent 
-          side={isMobile ? "bottom" : "right"} 
-          className={isMobile ? "h-[85vh] p-0 rounded-t-[1rem] overflow-hidden" : "w-[90vw] max-w-4xl p-0"}
-        >
-          {isMobile && (
-            <motion.div 
-              drag="y"
-              dragConstraints={{ top: 0, bottom: 0 }}
-              dragElastic={0.6}
-              onDrag={(_, info) => {
-                if (info.offset.y > 0) {
-                  dragY.set(info.offset.y);
-                  setIsDragging(true);
-                }
-              }}
-              onDragEnd={handleDragEnd}
-              style={{ 
-                opacity: dragOpacity,
-                scale: dragScale,
-              }}
-              className="w-full flex flex-col"
-            >
-              <div className="w-full flex justify-center pt-2 pb-1 touch-none cursor-grab active:cursor-grabbing">
-                <div className="w-12 h-1.5 rounded-full bg-gray-300" />
+      {isMobile ? (
+        <Sheet open={showMedia} onOpenChange={setShowMedia}>
+          <SheetContent
+            side="bottom"
+            className="h-[85vh] p-0"
+            draggable
+          >
+            <div className="h-full touch-pan-y">
+              <div className="w-full flex justify-center py-2 bg-white border-b">
+                <div className="w-12 h-1 rounded-full bg-gray-300" />
               </div>
-              <div className="absolute left-0 right-0 h-12 -top-8" />
-            </motion.div>
-          )}
-          <motion.div
-            style={{ 
-              opacity: dragOpacity,
-              scale: dragScale,
-            }}
+              <div className="h-[calc(100%-32px)] overflow-auto">
+                {renderMediaContent()}
+              </div>
+            </div>
+          </SheetContent>
+        </Sheet>
+      ) : (
+        <Sheet open={showMedia} onOpenChange={setShowMedia}>
+          <SheetContent 
+            side="right" 
+            className="w-[90vw] max-w-4xl p-0 max-h-[85vh]"
           >
             {renderMediaContent()}
-          </motion.div>
-        </SheetContent>
-      </Sheet>
+          </SheetContent>
+        </Sheet>
+      )}
     </>
   );
 };

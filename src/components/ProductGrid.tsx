@@ -6,6 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 interface ProductGridProps {
   searchTerm: string;
+  categoryFilter: string[];
   sortBy: string;
 }
 
@@ -15,6 +16,7 @@ interface Media {
 
 export const ProductGrid = ({
   searchTerm,
+  categoryFilter,
   sortBy,
 }: ProductGridProps) => {
   const queryClient = useQueryClient();
@@ -129,14 +131,25 @@ export const ProductGrid = ({
   const filteredProducts = products.filter((product) => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (product.description && product.description.toLowerCase().includes(searchTerm.toLowerCase()));
+    
+    // Ensure product.categories is always an array before filtering
+    const productCategories = Array.isArray(product.categories) ? product.categories : [];
+    
+    const matchesCategory = categoryFilter.length === 0 || 
+      productCategories.some(category => 
+        category && categoryFilter.includes(category.toLowerCase())
+      );
 
     console.log('ProductGrid: Filtering product:', {
       productId: product.id,
       productName: product.name,
-      matchesSearch
+      productCategories,
+      categoryFilter,
+      matchesSearch,
+      matchesCategory
     });
     
-    return matchesSearch;
+    return matchesSearch && matchesCategory;
   });
 
   const sortedProducts = [...filteredProducts].sort((a, b) => {
@@ -167,6 +180,7 @@ export const ProductGrid = ({
     filteredCount: filteredProducts.length,
     sortedCount: sortedProducts.length,
     searchTerm,
+    categoryFilter,
     sortBy
   });
 

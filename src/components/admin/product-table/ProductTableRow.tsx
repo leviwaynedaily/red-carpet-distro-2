@@ -5,43 +5,37 @@ import { ProductTableActions } from "./ProductTableActions";
 import { ProductEditDialog } from "./ProductEditDialog";
 import { ProductFullScreenEdit } from "./ProductFullScreenEdit";
 import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 type Product = Tables<"products">;
 
-interface ProductTableRowProps {
-  product: Product & { categories?: string[] };
+export interface ProductTableRowProps {
+  product: Product;
+  editingProduct: string | null;
+  editValues: Partial<Product>;
   visibleColumns: string[];
-  isEditing: boolean;
-  editValues: Partial<Product> & { categories?: string[] };
-  categories?: { id: string; name: string; }[];
-  onEditStart: (product: Product & { categories?: string[] }) => void;
-  onEditSave: () => void;
+  onEditStart: (product: Product) => Promise<void>;
+  onEditSave: () => Promise<void>;
   onEditCancel: () => void;
-  onEditChange: (values: Partial<Product> & { categories?: string[] }) => void;
+  onEditChange: (values: Partial<Product>) => void;
   onDelete: (id: string) => void;
-  onImageUpload: (productId: string, url: string) => void;
-  onVideoUpload: (productId: string, url: string) => void;
-  onDeleteMedia: (productId: string, type: 'image' | 'video') => void;
-  onMediaClick: (type: 'image' | 'video', url: string) => void;
+  onMediaUpload: (productId: string, file: File) => Promise<void>;
+  onDeleteMedia: (productId: string, type: "image" | "video") => void;
+  onMediaClick: (type: "image" | "video", url: string) => void;
 }
 
 export function ProductTableRow({
   product,
   visibleColumns,
-  isEditing,
+  editingProduct,
   editValues,
-  categories,
   onEditStart,
   onEditSave,
   onEditCancel,
   onEditChange,
   onDelete,
-  onImageUpload,
-  onVideoUpload,
+  onMediaUpload,
   onDeleteMedia,
   onMediaClick,
 }: ProductTableRowProps) {
@@ -57,53 +51,14 @@ export function ProductTableRow({
 
   const handleSave = async () => {
     console.log('ProductTableRow: Saving product:', product.id);
-    console.log('ProductTableRow: New categories:', editValues.categories);
-    
     setIsSaving(true);
     try {
-      // First, delete existing category associations
-      const { error: deleteError } = await supabase
-        .from('product_categories')
-        .delete()
-        .eq('product_id', product.id);
-
-      if (deleteError) throw deleteError;
-
-      // Then, insert new category associations if there are any categories selected
-      if (editValues.categories && editValues.categories.length > 0) {
-        // Get category IDs for the selected category names
-        const { data: categoryData, error: categoryError } = await supabase
-          .from('categories')
-          .select('id, name')
-          .in('name', editValues.categories);
-
-        if (categoryError) throw categoryError;
-
-        if (categoryData && categoryData.length > 0) {
-          // Create unique category associations
-          const uniqueAssociations = categoryData.map(category => ({
-            product_id: product.id,
-            category_id: category.id
-          }));
-
-          // Use upsert instead of insert to handle potential duplicates
-          const { error: insertError } = await supabase
-            .from('product_categories')
-            .upsert(uniqueAssociations, { 
-              onConflict: 'product_id,category_id',
-              ignoreDuplicates: true 
-            });
-
-          if (insertError) throw insertError;
-        }
-      }
-
       await onEditSave();
       setShowEditDialog(false);
       toast.success('Product updated successfully');
     } catch (error) {
-      console.error('ProductTableRow: Error saving categories:', error);
-      toast.error('Failed to update product categories');
+      console.error('ProductTableRow: Error saving product:', error);
+      toast.error('Failed to update product');
     } finally {
       setIsSaving(false);
     }
@@ -123,19 +78,17 @@ export function ProductTableRow({
             key={column}
             column={column}
             product={product}
-            isEditing={false}
+            isEditing={editingProduct === product.id}
             editValues={editValues}
-            categories={categories}
             onEditChange={onEditChange}
             onMediaClick={onMediaClick}
             onDeleteMedia={onDeleteMedia}
-            onImageUpload={onImageUpload}
-            onVideoUpload={onVideoUpload}
+            onMediaUpload={onMediaUpload}
           />
         ))}
         <ProductTableActions
           productId={product.id}
-          isEditing={isEditing}
+          isEditing={editingProduct === product.id}
           onEdit={handleEdit}
           onSave={handleSave}
           onCancel={handleCancel}
@@ -148,12 +101,10 @@ export function ProductTableRow({
           <ProductFullScreenEdit
             product={product}
             editValues={editValues}
-            categories={categories}
             onEditChange={onEditChange}
             onSave={handleSave}
             onCancel={handleCancel}
-            onImageUpload={onImageUpload}
-            onVideoUpload={onVideoUpload}
+            onMediaUpload={onMediaUpload}
             onDeleteMedia={onDeleteMedia}
             isSaving={isSaving}
           />
@@ -163,12 +114,10 @@ export function ProductTableRow({
             onOpenChange={setShowEditDialog}
             product={product}
             editValues={editValues}
-            categories={categories}
             onEditChange={onEditChange}
             onSave={handleSave}
             onCancel={handleCancel}
-            onImageUpload={onImageUpload}
-            onVideoUpload={onVideoUpload}
+            onMediaUpload={onMediaUpload}
             onDeleteMedia={onDeleteMedia}
             isSaving={isSaving}
           />

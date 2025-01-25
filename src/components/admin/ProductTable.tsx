@@ -19,16 +19,15 @@ interface ProductTableProps {
   visibleColumns: string[];
   editingProduct: string | null;
   editValues: Partial<Product>;
-  onEditStart: (product: Product) => void;
-  onEditSave: () => void;
+  onEditStart: (product: Product) => Promise<void>;
+  onEditSave: () => Promise<void>;
   onEditCancel: () => void;
   onEditChange: (values: Partial<Product>) => void;
   onDelete: (id: string) => void;
-  onImageUpload: (productId: string, url: string) => void;
-  onVideoUpload: (productId: string, url: string) => void;
+  onMediaUpload: (productId: string, file: File) => Promise<void>;
   onDeleteMedia: (productId: string, type: 'image' | 'video') => void;
   onMediaClick: (type: 'image' | 'video', url: string) => void;
-  sortConfig: { key: string; direction: 'asc' | 'desc' };
+  sortConfig: { key: string; direction: 'asc' | 'desc' } | null;
   onSort: (key: string) => void;
 }
 
@@ -42,8 +41,7 @@ export function ProductTable({
   onEditCancel,
   onEditChange,
   onDelete,
-  onImageUpload,
-  onVideoUpload,
+  onMediaUpload,
   onDeleteMedia,
   onMediaClick,
   sortConfig,
@@ -55,24 +53,10 @@ export function ProductTable({
     { key: "description", label: "Description", sortable: true },
     { key: "image", label: "Image", sortable: false },
     { key: "video_url", label: "Video", sortable: false },
-    { key: "categories", label: "Categories", sortable: false },
     { key: "stock", label: "Stock", sortable: true },
     { key: "regular_price", label: "Price", sortable: true },
     { key: "shipping_price", label: "Shipping", sortable: true },
   ];
-
-  // Fetch categories
-  const { data: categories } = useQuery({
-    queryKey: ['categories'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('categories')
-        .select('*')
-        .order('name');
-      if (error) throw error;
-      return data;
-    },
-  });
 
   return (
     <div className="rounded-md border">
@@ -104,16 +88,14 @@ export function ProductTable({
               key={product.id}
               product={product}
               visibleColumns={visibleColumns}
-              isEditing={editingProduct === product.id}
+              editingProduct={editingProduct}
               editValues={editValues}
-              categories={categories}
               onEditStart={onEditStart}
               onEditSave={onEditSave}
               onEditCancel={onEditCancel}
               onEditChange={onEditChange}
               onDelete={onDelete}
-              onImageUpload={onImageUpload}
-              onVideoUpload={onVideoUpload}
+              onMediaUpload={onMediaUpload}
               onDeleteMedia={onDeleteMedia}
               onMediaClick={onMediaClick}
             />

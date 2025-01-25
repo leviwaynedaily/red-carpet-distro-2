@@ -5,12 +5,15 @@ import { Button } from "@/components/ui/button";
 import { Filter } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { MultiSelect } from "@/components/ui/multi-select";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface HeaderProps {
   isSticky: boolean;
   searchTerm: string;
   onSearchChange: (value: string) => void;
+  categoryFilter: string[];
+  onCategoryChange: (value: string[]) => void;
   sortBy: string;
   onSortChange: (value: string) => void;
   onLogoClick: () => void;
@@ -20,6 +23,8 @@ export const Header = ({
   isSticky,
   searchTerm,
   onSearchChange,
+  categoryFilter,
+  onCategoryChange,
   sortBy,
   onSortChange,
   onLogoClick,
@@ -32,6 +37,8 @@ export const Header = ({
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [logoUrl, setLogoUrl] = useState('');
   const [logoUrlWebp, setLogoUrlWebp] = useState('');
+  const [categories, setCategories] = useState<{ value: string; label: string }[]>([]);
+  const [isLoadingCategories, setIsLoadingCategories] = useState(true);
   const isMobile = useIsMobile();
 
   useEffect(() => {
@@ -61,7 +68,36 @@ export const Header = ({
       }
     };
 
+    const fetchCategories = async () => {
+      setIsLoadingCategories(true);
+      try {
+        const { data, error } = await supabase
+          .from('categories')
+          .select('id, name')
+          .order('name');
+
+        if (error) {
+          console.error('Error fetching categories:', error);
+          return;
+        }
+
+        if (data) {
+          console.log('Header: Fetched categories:', data);
+          const formattedCategories = data.map(category => ({
+            value: category.name.toLowerCase(),
+            label: category.name
+          }));
+          setCategories(formattedCategories);
+        }
+      } catch (error) {
+        console.error('Error in fetchCategories:', error);
+      } finally {
+        setIsLoadingCategories(false);
+      }
+    };
+
     fetchHeaderSettings();
+    fetchCategories();
   }, []);
 
   useEffect(() => {
@@ -86,24 +122,34 @@ export const Header = ({
   };
 
   const FilterControls = () => (
-    <Select value={sortBy} onValueChange={(value) => {
-      onSortChange(value);
-      if (isMobile) setIsSheetOpen(false);
-    }}>
-      <SelectTrigger className="w-full md:w-[150px] bg-white/80">
-        <SelectValue placeholder="Sort by" />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="name-asc">Name (A-Z)</SelectItem>
-        <SelectItem value="name-desc">Name (Z-A)</SelectItem>
-        <SelectItem value="strain-asc">Strain (A-Z)</SelectItem>
-        <SelectItem value="strain-desc">Strain (Z-A)</SelectItem>
-        <SelectItem value="price-asc">Price (Low to High)</SelectItem>
-        <SelectItem value="price-desc">Price (High to Low)</SelectItem>
-        <SelectItem value="date-desc">Newest First</SelectItem>
-        <SelectItem value="date-asc">Oldest First</SelectItem>
-      </SelectContent>
-    </Select>
+    <>
+      {!isLoadingCategories && categories.length > 0 && (
+        <MultiSelect
+          options={categories}
+          value={categoryFilter}
+          onChange={onCategoryChange}
+          placeholder="Select categories"
+        />
+      )}
+      <Select value={sortBy} onValueChange={(value) => {
+        onSortChange(value);
+        if (isMobile) setIsSheetOpen(false);
+      }}>
+        <SelectTrigger className="w-full md:w-[150px] bg-white/80">
+          <SelectValue placeholder="Sort by" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="name-asc">Name (A-Z)</SelectItem>
+          <SelectItem value="name-desc">Name (Z-A)</SelectItem>
+          <SelectItem value="strain-asc">Strain (A-Z)</SelectItem>
+          <SelectItem value="strain-desc">Strain (Z-A)</SelectItem>
+          <SelectItem value="price-asc">Price (Low to High)</SelectItem>
+          <SelectItem value="price-desc">Price (High to Low)</SelectItem>
+          <SelectItem value="date-desc">Newest First</SelectItem>
+          <SelectItem value="date-asc">Oldest First</SelectItem>
+        </SelectContent>
+      </Select>
+    </>
   );
 
   return (
@@ -124,7 +170,7 @@ export const Header = ({
               />
             )}
             <img
-              src={logoUrl || '/placeholder.svg'}
+              src={logoUrl}
               alt="Palmtree Smokes"
               className="h-10 md:h-14 cursor-pointer transition-transform duration-200 hover:scale-105"
               onClick={onLogoClick}
@@ -155,7 +201,7 @@ export const Header = ({
                   </SheetTrigger>
                   <SheetContent side="bottom" className="h-[300px]">
                     <SheetHeader>
-                      <SheetTitle>Sort</SheetTitle>
+                      <SheetTitle>Filters</SheetTitle>
                     </SheetHeader>
                     <div className="flex flex-col gap-4 mt-4">
                       <FilterControls />

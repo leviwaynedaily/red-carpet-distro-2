@@ -5,7 +5,7 @@ import { Check, X, Trash2, Edit } from "lucide-react";
 interface ProductTableActionsProps {
   productId: string;
   isEditing: boolean;
-  onSave: () => void;
+  onSave: () => Promise<void>;
   onCancel: () => void;
   onDelete: (id: string) => void;
   onEdit: () => void;
@@ -28,9 +28,9 @@ export function ProductTableActions({
               size="icon"
               variant="secondary"
               className="h-8 w-8"
-              onClick={(e) => {
+              onClick={async (e) => {
                 e.stopPropagation();
-                onSave();
+                await onSave();
               }}
               aria-label="Save changes"
             >

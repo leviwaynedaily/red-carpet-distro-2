@@ -15,19 +15,19 @@ import { Button } from "@/components/ui/button";
 type Product = Tables<"products">;
 
 interface ProductTableProps {
-  products: Product[];
+  products: (Product & { categories?: string[] })[];
   editingProduct: string | null;
-  editValues: Partial<Product>;
+  editValues: Partial<Product> & { categories?: string[] };
+  categories?: { id: string; name: string; }[];
   visibleColumns: string[];
-  onEditStart: (product: Product) => void;
+  onEditStart: (product: Product & { categories?: string[] }) => void;
   onEditSave: () => void;
   onEditCancel: () => void;
-  onEditChange: (values: Partial<Product>) => void;
+  onEditChange: (values: Partial<Product> & { categories?: string[] }) => void;
   onDelete: (id: string) => void;
-  onImageUpload: (productId: string, url: string) => void;
-  onVideoUpload: (productId: string, url: string) => void;
-  onDeleteMedia: (productId: string, type: 'image' | 'video') => void;
-  onMediaClick: (type: 'image' | 'video', url: string) => void;
+  onMediaUpload: (productId: string, file: File) => Promise<void>;
+  onDeleteMedia: (productId: string, type: "image" | "video") => void;
+  onMediaClick: (type: "image" | "video", url: string) => void;
   sortConfig: { key: string; direction: 'asc' | 'desc' };
   onSort: (key: string) => void;
 }
@@ -37,13 +37,13 @@ export function ProductTable({
   visibleColumns,
   editingProduct,
   editValues,
+  categories,
   onEditStart,
   onEditSave,
   onEditCancel,
   onEditChange,
   onDelete,
-  onImageUpload,
-  onVideoUpload,
+  onMediaUpload,
   onDeleteMedia,
   onMediaClick,
   sortConfig,
@@ -55,10 +55,24 @@ export function ProductTable({
     { key: "description", label: "Description", sortable: true },
     { key: "image", label: "Image", sortable: false },
     { key: "video_url", label: "Video", sortable: false },
+    { key: "categories", label: "Categories", sortable: false },
     { key: "stock", label: "Stock", sortable: true },
     { key: "regular_price", label: "Price", sortable: true },
     { key: "shipping_price", label: "Shipping", sortable: true },
   ];
+
+  // Fetch categories
+  const { data: fetchedCategories } = useQuery({
+    queryKey: ['categories'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('categories')
+        .select('*')
+        .order('name');
+      if (error) throw error;
+      return data;
+    },
+  });
 
   return (
     <div className="rounded-md border">
@@ -92,13 +106,13 @@ export function ProductTable({
               visibleColumns={visibleColumns}
               isEditing={editingProduct === product.id}
               editValues={editValues}
-              onEditStart={onEditStart}
+              categories={categories || fetchedCategories}
+              onEditStart={async (product) => await onEditStart(product)}
               onEditSave={onEditSave}
               onEditCancel={onEditCancel}
               onEditChange={onEditChange}
               onDelete={onDelete}
-              onImageUpload={onImageUpload}
-              onVideoUpload={onVideoUpload}
+              onMediaUpload={onMediaUpload}
               onDeleteMedia={onDeleteMedia}
               onMediaClick={onMediaClick}
             />

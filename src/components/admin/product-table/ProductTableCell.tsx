@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { TableCell } from "@/components/ui/table";
 import { FileUpload } from "@/components/ui/file-upload";
-import { Play, Upload, Trash2, Image } from "lucide-react";
+import { Play, Upload, Trash2, Image, X } from "lucide-react";
 import { formatPrice } from "@/utils/formatPrice";
 import { ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -15,25 +15,29 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useState } from "react";
 
-type Product = Tables<"products"> & {
-  media?: {
-    original: string;
-    webp: string;
-  };
-};
+type Product = Tables<"products">;
 
-interface ProductTableCellProps {
+export interface ProductTableCellProps {
+  key: string;
   column: string;
   product: Product;
   isEditing: boolean;
   editValues: Partial<Product>;
   onEditChange: (values: Partial<Product>) => void;
-  onMediaClick?: (type: 'image' | 'video', url: string) => void;
-  onDeleteMedia?: (productId: string, type: 'image' | 'video') => void;
-  onImageUpload?: (productId: string, url: string) => void;
-  onVideoUpload?: (productId: string, url: string) => void;
+  onMediaUpload: (productId: string, file: File) => Promise<void>;
+  onDeleteMedia: (productId: string, type: "image" | "video") => void;
+  onMediaClick: (type: "image" | "video", url: string) => void;
 }
+
+// Add timestamp to URLs to prevent caching
+const addVersionToUrl = (url: string) => {
+  if (!url) return url;
+  const timestamp = new Date().getTime();
+  const separator = url.includes('?') ? '&' : '?';
+  return `${url}${separator}v=${timestamp}`;
+};
 
 export function ProductTableCell({
   column,
@@ -41,12 +45,11 @@ export function ProductTableCell({
   isEditing,
   editValues,
   onEditChange,
-  onMediaClick,
+  onMediaUpload,
   onDeleteMedia,
-  onImageUpload,
-  onVideoUpload,
+  onMediaClick,
 }: ProductTableCellProps) {
-  const handleInputChange = (field: keyof Product, value: string | number | string[]) => {
+  const handleInputChange = (field: keyof Product, value: string | number) => {
     console.log('ProductTableCell: Updating field:', field, 'with value:', value);
     onEditChange({ ...editValues, [field]: value });
   };
@@ -83,53 +86,34 @@ export function ProductTableCell({
 
       case 'image':
         return (
-          <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-            {product.image_url ? (
-              <div className="flex items-center gap-2">
-                <div className="relative w-12 h-12 group cursor-pointer"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onMediaClick?.('image', product.image_url!);
-                  }}
-                >
-                  <img
-                    src={product.image_url}
-                    alt={product.name}
-                    className="w-full h-full object-cover rounded-md"
-                  />
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-colors rounded-md" />
-                </div>
+          <div className="flex items-center gap-2">
+            {product.image_url && (
+              <div className="relative group">
+                <img
+                  src={addVersionToUrl(product.image_url)}
+                  alt={product.name}
+                  className="h-12 w-12 object-cover rounded-lg cursor-pointer"
+                  onClick={() => onMediaClick?.("image", product.image_url!)}
+                />
                 {isEditing && (
                   <Button
                     variant="destructive"
                     size="icon"
-                    className="h-8 w-8"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDeleteMedia?.(product.id, 'image');
-                    }}
-                    tabIndex={0}
+                    className="absolute -top-2 -right-2 h-5 w-5 hidden group-hover:flex"
+                    onClick={() => onDeleteMedia?.(product.id, "image")}
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <X className="h-3 w-3" />
                   </Button>
                 )}
               </div>
-            ) : (
-              isEditing && (
-                <div className="relative w-12 h-12 flex items-center justify-center bg-gray-100 rounded-md">
-                  <Image className="h-6 w-6 text-gray-400" />
-                </div>
-              )
             )}
             {isEditing && (
               <FileUpload
-                onUploadComplete={(url) => onImageUpload?.(product.id, url)}
-                accept="image/*"
+                onUploadComplete={(file) => onMediaUpload(product.id, file)}
+                accept="image/*,video/*"
                 bucket="media"
-                folderPath={`products/${product.id}`}
-                fileName="image"
-                className="w-8"
-                buttonContent={<Upload className="h-4 w-4" />}
+                className="w-[120px]"
+                skipUpload={true}
               />
             )}
           </div>
@@ -137,49 +121,48 @@ export function ProductTableCell({
 
       case 'video_url':
         return (
-          <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center gap-2">
             {product.video_url && (
-              <div className="flex items-center gap-2">
-                <div className="relative w-12 h-12 group cursor-pointer"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onMediaClick?.('video', product.video_url!);
-                  }}
-                >
-                  <img
-                    src={product.media?.webp || product.image_url || '/placeholder.svg'}
-                    alt={product.name}
-                    className="w-full h-full object-cover rounded-md"
-                  />
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/50 transition-colors rounded-md">
-                    <Play className="h-6 w-6 text-white" />
+              <div className="relative group">
+                {product.image_url ? (
+                  <div className="relative">
+                    <img
+                      src={addVersionToUrl(product.image_url)}
+                      alt={`${product.name} preview`}
+                      className="h-12 w-12 object-cover rounded-lg cursor-pointer"
+                      onClick={() => onMediaClick?.("video", product.video_url!)}
+                    />
+                    <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors rounded-lg flex items-center justify-center">
+                      <Play className="h-6 w-6 text-white" />
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="relative">
+                    <div className="h-12 w-12 bg-gray-100 rounded-lg flex items-center justify-center cursor-pointer"
+                         onClick={() => onMediaClick?.("video", product.video_url!)}>
+                      <Play className="h-6 w-6 text-gray-400" />
+                    </div>
+                  </div>
+                )}
                 {isEditing && (
                   <Button
                     variant="destructive"
                     size="icon"
-                    className="h-8 w-8"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDeleteMedia?.(product.id, 'video');
-                    }}
-                    tabIndex={0}
+                    className="absolute -top-2 -right-2 h-5 w-5 hidden group-hover:flex"
+                    onClick={() => onDeleteMedia?.(product.id, "video")}
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <X className="h-3 w-3" />
                   </Button>
                 )}
               </div>
             )}
-            {isEditing && (
+            {isEditing && !product.video_url && (
               <FileUpload
-                onUploadComplete={(url) => onVideoUpload?.(product.id, url)}
+                onUploadComplete={(file) => onMediaUpload(product.id, file)}
                 accept="video/*"
                 bucket="media"
-                folderPath={`products/${product.id}`}
-                fileName="video"
-                className="w-8"
-                buttonContent={<Upload className="h-4 w-4" />}
+                className="w-[120px]"
+                skipUpload={true}
               />
             )}
           </div>
@@ -196,7 +179,7 @@ export function ProductTableCell({
             tabIndex={0}
           />
         ) : (
-          product.stock?.toString() || '0'
+          product.stock?.toString() || '-'
         );
 
       case 'regular_price':

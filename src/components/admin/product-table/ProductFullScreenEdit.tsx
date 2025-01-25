@@ -6,19 +6,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { X, ArrowLeft } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { FileUpload } from "@/components/ui/file-upload";
-import { MultiSelect } from "@/components/ui/multi-select";
 
 type Product = Tables<"products">;
 
 interface ProductFullScreenEditProps {
-  product: Product & { categories?: string[] };
-  editValues: Partial<Product> & { categories?: string[] };
-  categories?: { id: string; name: string }[];
-  onEditChange: (values: Partial<Product> & { categories?: string[] }) => void;
-  onSave: () => void;
+  product: Product;
+  editValues: Partial<Product>;
+  onEditChange: (values: Partial<Product>) => void;
+  onSave: () => Promise<void>;
   onCancel: () => void;
-  onImageUpload: (productId: string, url: string) => void;
-  onVideoUpload: (productId: string, url: string) => void;
+  onMediaUpload: (productId: string, file: File) => Promise<void>;
   onDeleteMedia: (productId: string, type: "image" | "video") => void;
   isSaving?: boolean;
 }
@@ -26,12 +23,10 @@ interface ProductFullScreenEditProps {
 export function ProductFullScreenEdit({
   product,
   editValues,
-  categories,
   onEditChange,
   onSave,
   onCancel,
-  onImageUpload,
-  onVideoUpload,
+  onMediaUpload,
   onDeleteMedia,
   isSaving,
 }: ProductFullScreenEditProps) {
@@ -79,39 +74,26 @@ export function ProductFullScreenEdit({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="categories">Categories</Label>
-            {categories && (
-              <MultiSelect
-                value={editValues.categories || []}
-                onChange={(value) => onEditChange({ ...editValues, categories: value })}
-                options={categories.map((cat) => ({
-                  label: cat.name,
-                  value: cat.name,
-                }))}
-                placeholder="Select categories"
-              />
-            )}
-          </div>
-
-          <div className="space-y-2">
             <Label>Media</Label>
             <div className="space-y-4">
               <div>
                 <Label>Image</Label>
                 <FileUpload
                   accept="image/*"
-                  onUpload={(url) => onImageUpload(product.id, url)}
+                  onUploadComplete={(file) => onMediaUpload(product.id, file)}
                   onDelete={() => onDeleteMedia(product.id, "image")}
                   value={editValues.image_url}
+                  skipUpload={true}
                 />
               </div>
               <div>
                 <Label>Video</Label>
                 <FileUpload
                   accept="video/*"
-                  onUpload={(url) => onVideoUpload(product.id, url)}
+                  onUploadComplete={(file) => onMediaUpload(product.id, file)}
                   onDelete={() => onDeleteMedia(product.id, "video")}
                   value={editValues.video_url}
+                  skipUpload={true}
                 />
               </div>
             </div>

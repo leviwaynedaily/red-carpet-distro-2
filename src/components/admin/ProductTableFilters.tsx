@@ -7,9 +7,8 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
-import { Download, Plus, Settings2, Upload, MoreVertical } from "lucide-react";
+import { Download, Plus, Settings2, Upload } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 interface Column {
@@ -77,35 +76,7 @@ export function ProductTableFilters({
         )}
       </div>
       <div className="flex items-center space-x-2">
-        {isMobile ? (
-          <>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon">
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={onDownloadTemplate}>
-                  <Download className="mr-2 h-4 w-4" />
-                  Template
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={onImport}>
-                  <Upload className="mr-2 h-4 w-4" />
-                  Import
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={onExport}>
-                  <Download className="mr-2 h-4 w-4" />
-                  Export
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <Button onClick={onAddProduct} size="sm">
-              <Plus className="mr-2 h-4 w-4" />
-              Add
-            </Button>
-          </>
-        ) : (
+        {!isMobile && (
           <>
             <Button onClick={onDownloadTemplate} variant="outline" size="sm">
               <Download className="mr-2 h-4 w-4" />
@@ -119,12 +90,12 @@ export function ProductTableFilters({
               <Download className="mr-2 h-4 w-4" />
               Export
             </Button>
-            <Button onClick={onAddProduct} size="sm">
-              <Plus className="mr-2 h-4 w-4" />
-              Add Product
-            </Button>
           </>
         )}
+        <Button onClick={onAddProduct} size="sm">
+          <Plus className="mr-2 h-4 w-4" />
+          Add Product
+        </Button>
       </div>
     </div>
   );

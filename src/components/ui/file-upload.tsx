@@ -6,7 +6,7 @@ import { Loader2 } from "lucide-react";
 import { convertToWebP, isImageFile } from "@/utils/imageUtils";
 
 interface FileUploadProps {
-  onUploadComplete?: (url: string) => void;
+  onUploadComplete?: ((url: string) => void) | ((file: File) => void) | ((file: File) => Promise<void>);
   onUpload?: (url: string) => void;
   onDelete?: () => void;
   accept?: string;
@@ -16,6 +16,7 @@ interface FileUploadProps {
   className?: string;
   buttonContent?: React.ReactNode;
   value?: string;
+  skipUpload?: boolean;
 }
 
 export function FileUpload({ 
@@ -28,7 +29,8 @@ export function FileUpload({
   fileName,
   className,
   buttonContent = "Upload File",
-  value
+  value,
+  skipUpload = false
 }: FileUploadProps) {
   const [isUploading, setIsUploading] = useState(false);
 
@@ -45,6 +47,21 @@ export function FileUpload({
         folderPath,
         bucket
       });
+
+      if (skipUpload && onUploadComplete) {
+        try {
+          // Ensure we're calling it as a function that accepts a File
+          const uploadFn = onUploadComplete as (file: File) => Promise<void>;
+          await uploadFn(file);
+          toast.success('File processed successfully');
+        } catch (error) {
+          console.error('Error processing file:', error);
+          toast.error('Failed to process file');
+        } finally {
+          setIsUploading(false);
+        }
+        return;
+      }
       
       const fileExt = file.name.split('.').pop();
       const finalFileName = fileName 
@@ -103,7 +120,9 @@ export function FileUpload({
         }
       }
 
-      if (onUploadComplete) onUploadComplete(publicUrl);
+      if (onUploadComplete) {
+        (onUploadComplete as (url: string) => void)(publicUrl);
+      }
       if (onUpload) onUpload(publicUrl);
       toast.success('File uploaded successfully');
     } catch (error) {
