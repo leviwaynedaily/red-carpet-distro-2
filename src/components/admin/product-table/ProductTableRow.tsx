@@ -11,25 +11,28 @@ import { useIsMobile } from "@/hooks/use-mobile";
 type Product = Tables<"products">;
 
 export interface ProductTableRowProps {
-  product: Product;
-  editingProduct: string | null;
-  editValues: Partial<Product>;
+  product: Product & { categories?: string[] };
   visibleColumns: string[];
-  onEditStart: (product: Product) => Promise<void>;
+  isEditing: boolean;
+  editValues: Partial<Product> & { categories?: string[] };
+  categories?: { id: string; name: string; }[];
+  onEditStart: (product: Product & { categories?: string[] }) => Promise<void>;
   onEditSave: () => Promise<void>;
   onEditCancel: () => void;
-  onEditChange: (values: Partial<Product>) => void;
+  onEditChange: (values: Partial<Product> & { categories?: string[] }) => void;
   onDelete: (id: string) => void;
   onMediaUpload: (productId: string, file: File) => Promise<void>;
   onDeleteMedia: (productId: string, type: "image" | "video") => void;
   onMediaClick: (type: "image" | "video", url: string) => void;
+  isUploading?: { isUploading: boolean; status: string };
 }
 
 export function ProductTableRow({
   product,
   visibleColumns,
-  editingProduct,
+  isEditing,
   editValues,
+  categories,
   onEditStart,
   onEditSave,
   onEditCancel,
@@ -38,6 +41,7 @@ export function ProductTableRow({
   onMediaUpload,
   onDeleteMedia,
   onMediaClick,
+  isUploading,
 }: ProductTableRowProps) {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -78,17 +82,18 @@ export function ProductTableRow({
             key={column}
             column={column}
             product={product}
-            isEditing={editingProduct === product.id}
+            isEditing={isEditing}
             editValues={editValues}
             onEditChange={onEditChange}
             onMediaClick={onMediaClick}
             onDeleteMedia={onDeleteMedia}
             onMediaUpload={onMediaUpload}
+            isUploading={isUploading}
           />
         ))}
         <ProductTableActions
           productId={product.id}
-          isEditing={editingProduct === product.id}
+          isEditing={isEditing}
           onEdit={handleEdit}
           onSave={handleSave}
           onCancel={handleCancel}

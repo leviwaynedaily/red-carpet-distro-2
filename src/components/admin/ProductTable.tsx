@@ -88,7 +88,7 @@ export function ProductTable({
               key={product.id}
               product={product}
               visibleColumns={visibleColumns}
-              editingProduct={editingProduct}
+              isEditing={editingProduct === product.id}
               editValues={editValues}
               onEditStart={onEditStart}
               onEditSave={onEditSave}

@@ -32,6 +32,7 @@ export function ProductManagement() {
     "shipping_price",
   ]);
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
+  const [uploadingMedia, setUploadingMedia] = useState<{[key: string]: { isUploading: boolean; status: string }}>({});
 
   const columns = [
     { key: "name", label: "Name" },
@@ -112,8 +113,12 @@ export function ProductManagement() {
 
   const handleMediaUpload = async (productId: string, file: File) => {
     console.log('ProductManagement: Uploading media for product:', productId);
+    setUploadingMedia(prev => ({ 
+      ...prev, 
+      [productId]: { isUploading: true, status: 'Starting upload...' }
+    }));
+
     try {
-      // Get file extension and ensure it's webp for images
       const isImage = file.type.startsWith('image/');
       const extension = isImage ? 'webp' : file.name.split('.').pop() || 'mp4';
       const fileName = `products/${productId}/${Date.now()}.${extension}`;
@@ -122,7 +127,18 @@ export function ProductManagement() {
       let thumbnailUrl = null;
       if (!isImage) {
         try {
+          setUploadingMedia(prev => ({ 
+            ...prev, 
+            [productId]: { isUploading: true, status: 'Generating thumbnail...' }
+          }));
+
           const thumbnailBlob = await generateThumbnail(file);
+          
+          setUploadingMedia(prev => ({ 
+            ...prev, 
+            [productId]: { isUploading: true, status: 'Uploading thumbnail...' }
+          }));
+
           const thumbnailPath = `products/${productId}/thumbnail.webp`;
           const { data: thumbnailData, error: thumbnailError } = await supabase.storage
             .from('media')
@@ -140,6 +156,11 @@ export function ProductManagement() {
       }
 
       // Upload the main media file
+      setUploadingMedia(prev => ({ 
+        ...prev, 
+        [productId]: { isUploading: true, status: isImage ? 'Uploading image...' : 'Uploading video...' }
+      }));
+
       const { data, error } = await supabase.storage
         .from('media')
         .upload(fileName, file);
@@ -149,6 +170,11 @@ export function ProductManagement() {
       const mediaUrl = supabase.storage
         .from('media')
         .getPublicUrl(data.path).data.publicUrl;
+
+      setUploadingMedia(prev => ({ 
+        ...prev, 
+        [productId]: { isUploading: true, status: 'Saving changes...' }
+      }));
 
       // Update the product with both URLs if we have a thumbnail
       const updateData: any = {
@@ -168,11 +194,23 @@ export function ProductManagement() {
 
       if (updateError) throw updateError;
 
+      setUploadingMedia(prev => ({ 
+        ...prev, 
+        [productId]: { isUploading: true, status: 'Refreshing display...' }
+      }));
+
+      // Wait for the query to be invalidated and refetched
       await queryClient.invalidateQueries({ queryKey: ['products'] });
+      
+      // Add a small delay to ensure the new data is displayed
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
       toast.success(isImage ? 'Image uploaded successfully' : 'Video uploaded successfully');
     } catch (error) {
       console.error('ProductManagement: Error uploading media:', error);
       toast.error('Failed to upload media');
+    } finally {
+      setUploadingMedia(prev => ({ ...prev, [productId]: { isUploading: false, status: '' } }));
     }
   };
 
@@ -409,6 +447,7 @@ export function ProductManagement() {
           onMediaUpload={handleMediaUpload}
           onDeleteMedia={handleDeleteMedia}
           onMediaClick={handleMediaClick}
+          uploadingMedia={uploadingMedia}
         />
       ) : (
         <ProductTable

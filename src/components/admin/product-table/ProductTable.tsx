@@ -30,6 +30,7 @@ interface ProductTableProps {
   onMediaClick: (type: "image" | "video", url: string) => void;
   sortConfig: { key: string; direction: 'asc' | 'desc' };
   onSort: (key: string) => void;
+  uploadingMedia: { [key: string]: { isUploading: boolean; status: string } };
 }
 
 export function ProductTable({
@@ -48,6 +49,7 @@ export function ProductTable({
   onMediaClick,
   sortConfig,
   onSort,
+  uploadingMedia,
 }: ProductTableProps) {
   const COLUMNS = [
     { key: "name", label: "Name", sortable: true },
@@ -108,13 +110,14 @@ export function ProductTable({
               editValues={editValues}
               categories={categories || fetchedCategories}
               onEditStart={async (product) => await onEditStart(product)}
-              onEditSave={onEditSave}
+              onEditSave={async () => await onEditSave()}
               onEditCancel={onEditCancel}
               onEditChange={onEditChange}
               onDelete={onDelete}
               onMediaUpload={onMediaUpload}
               onDeleteMedia={onDeleteMedia}
               onMediaClick={onMediaClick}
+              isUploading={uploadingMedia[product.id]}
             />
           ))}
         </TableBody>
