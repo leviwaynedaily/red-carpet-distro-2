@@ -1,7 +1,6 @@
 import { Tables } from "@/integrations/supabase/types";
 import { AdminProductCard } from "../AdminProductCard";
 import { ProductTableCell } from "./ProductTableCell";
-import { ProductEditDialog } from "./ProductEditDialog";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -36,38 +35,9 @@ export function ProductMobileGrid({
   onMediaClick,
   uploadingMedia,
 }: ProductMobileGridProps) {
-  const [showEditDialog, setShowEditDialog] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
-
   const handleEditStart = async (product: Product) => {
     console.log('ProductMobileGrid: Starting edit for product:', product.id);
-    setSelectedProduct(product);
     await onEditStart(product);
-    setShowEditDialog(true);
-  };
-
-  const handleEditSave = async () => {
-    console.log('ProductMobileGrid: Saving edit for product:', selectedProduct?.id);
-    setIsSaving(true);
-    try {
-      await onEditSave();
-      setShowEditDialog(false);
-      setSelectedProduct(null);
-      toast.success('Product updated successfully');
-    } catch (error) {
-      console.error('ProductMobileGrid: Error saving product:', error);
-      toast.error('Failed to update product');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleEditCancel = () => {
-    console.log('ProductMobileGrid: Canceling edit');
-    onEditCancel();
-    setShowEditDialog(false);
-    setSelectedProduct(null);
   };
 
   const handleDelete = (id: string) => {
@@ -76,44 +46,27 @@ export function ProductMobileGrid({
   };
 
   return (
-    <>
-      <div className="grid grid-cols-2 gap-4">
-        {products.map((product) => (
-          <div key={product.id} className="bg-white p-4 rounded-lg shadow">
-            <AdminProductCard
-              {...product}
-              onUpdate={() => {
-                console.log('ProductMobileGrid: Update clicked for product:', product.id);
-                handleEditStart(product);
-              }}
-              onDelete={(id) => {
-                console.log('ProductMobileGrid: Delete clicked for product:', id);
-                handleDelete(id);
-              }}
-              onEdit={() => {
-                console.log('ProductMobileGrid: Edit clicked for product:', product.id);
-                handleEditStart(product);
-              }}
-              data-product-id={product.id}
-            />
-          </div>
-        ))}
-      </div>
-
-      {selectedProduct && (
-        <ProductEditDialog
-          open={showEditDialog}
-          onOpenChange={setShowEditDialog}
-          product={selectedProduct}
-          editValues={editValues}
-          onEditChange={onEditChange}
-          onSave={handleEditSave}
-          onCancel={handleEditCancel}
-          onMediaUpload={onMediaUpload}
-          onDeleteMedia={onDeleteMedia}
-          isSaving={isSaving}
-        />
-      )}
-    </>
+    <div className="grid grid-cols-2 gap-4">
+      {products.map((product) => (
+        <div key={product.id} className="bg-white p-4 rounded-lg shadow">
+          <AdminProductCard
+            {...product}
+            onUpdate={() => {
+              console.log('ProductMobileGrid: Update clicked for product:', product.id);
+              handleEditStart(product);
+            }}
+            onDelete={(id) => {
+              console.log('ProductMobileGrid: Delete clicked for product:', id);
+              handleDelete(id);
+            }}
+            onEdit={() => {
+              console.log('ProductMobileGrid: Edit clicked for product:', product.id);
+              handleEditStart(product);
+            }}
+            data-product-id={product.id}
+          />
+        </div>
+      ))}
+    </div>
   );
 }

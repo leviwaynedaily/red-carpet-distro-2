@@ -8,9 +8,9 @@ import { ProductMobileGrid } from "./product-table/ProductMobileGrid";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
-import { AddProductDialog } from "./product-table/AddProductDialog";
 import { downloadTemplate, exportProducts, parseCSV } from "@/utils/csvUtils";
 import { useQuery } from "@tanstack/react-query";
+import { ProductDialog } from "./product-table/ProductDialog";
 
 type Product = Tables<"products">;
 
@@ -33,6 +33,13 @@ export function ProductManagement() {
   ]);
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
   const [uploadingMedia, setUploadingMedia] = useState<{[key: string]: { isUploading: boolean; status: string }}>({});
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [addValues, setAddValues] = useState<Partial<Product>>({
+    stock: 0,
+    regular_price: 0,
+    shipping_price: 0,
+  });
+  const [isSaving, setIsSaving] = useState(false);
 
   const columns = [
     { key: "name", label: "Name" },
@@ -65,6 +72,7 @@ export function ProductManagement() {
     console.log('ProductManagement: New values:', editValues);
 
     try {
+      setIsSaving(true);
       const { error: updateError } = await supabase
         .from('products')
         .update(editValues)
@@ -84,13 +92,16 @@ export function ProductManagement() {
       // Add a small delay to ensure the new data is displayed
       await new Promise(resolve => setTimeout(resolve, 1000));
 
-      setEditingProduct(null);
-      setEditValues({});
       toast.success('Product updated successfully');
     } catch (error) {
       console.error('ProductManagement: Error updating product:', error);
       toast.error('Failed to update product');
     } finally {
+      // Clear all states
+      setIsSaving(false);
+      setEditingProduct(null);
+      setEditValues({});
+      setIsAddDialogOpen(false);
       // Clear loading state
       setUploadingMedia(prev => {
         const newState = { ...prev };
@@ -104,6 +115,7 @@ export function ProductManagement() {
     console.log('ProductManagement: Canceling edit');
     setEditingProduct(null);
     setEditValues({});
+    setIsAddDialogOpen(false);
   };
 
   const handleEditChange = (values: Partial<Product>) => {
@@ -340,54 +352,57 @@ export function ProductManagement() {
     window.open(url, "_blank");
   };
 
-  const handleAddProduct = async (product: Partial<Product>): Promise<boolean> => {
-    console.log("Starting product add:", product);
-    setIsAddingSaving(true);
+  const handleAddProduct = async () => {
+    setIsAddDialogOpen(true);
+    setAddValues({
+      stock: 0,
+      regular_price: 0,
+      shipping_price: 0,
+    });
+  };
+
+  const handleAddSave = async () => {
     try {
       // Validate required fields
-      if (!product.name) {
+      if (!addValues.name?.trim()) {
         toast.error("Product name is required");
-        return false;
+        return;
       }
 
-      // Force TS to see `name` as a string
-      const { data, error } = await supabase
+      setIsSaving(true);
+      const productToAdd = {
+        ...addValues,
+        name: addValues.name,
+        stock: addValues.stock || 0,
+        regular_price: addValues.regular_price || 0,
+        shipping_price: addValues.shipping_price || 0,
+        primary_media_type: "image",
+        media: [],
+      };
+
+      const { data: newProduct, error } = await supabase
         .from("products")
-        .insert([
-          {
-            name: product.name as string,
-            description: product.description,
-            strain: product.strain,
-            stock: product.stock || 0,
-            regular_price: product.regular_price || 0,
-            shipping_price: product.shipping_price || 0,
-            image_url: product.image_url,
-            video_url: product.video_url,
-            primary_media_type: "image",
-            media: [],
-          },
-        ])
+        .insert([productToAdd])
         .select()
         .single();
 
-      if (error) {
-        console.error("Supabase error:", error);
-        throw error;
-      }
+      if (error) throw error;
 
-      console.log("Product added successfully:", data);
       await queryClient.invalidateQueries({ queryKey: ["products"] });
-      
-      // Only close dialog and show success after everything is complete
-      setShowAddDialog(false);
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
       toast.success("Product added successfully");
-      return true;
     } catch (error) {
       console.error("Error adding product:", error);
       toast.error("Failed to add product");
-      return false;
     } finally {
-      setIsAddingSaving(false);
+      setIsSaving(false);
+      setIsAddDialogOpen(false);
+      setAddValues({
+        stock: 0,
+        regular_price: 0,
+        shipping_price: 0,
+      });
     }
   };
 
@@ -482,7 +497,7 @@ export function ProductManagement() {
         visibleColumns={visibleColumns}
         onColumnToggle={handleColumnToggle}
         showColumnToggle={!isMobile}
-        onAddProduct={() => setShowAddDialog(true)}
+        onAddProduct={handleAddProduct}
         onImport={handleImport}
         onExport={handleExport}
         onDownloadTemplate={handleDownloadTemplate}
@@ -522,11 +537,39 @@ export function ProductManagement() {
         />
       )}
 
-      <AddProductDialog
-        open={showAddDialog}
-        onOpenChange={setShowAddDialog}
-        onSave={handleAddProduct}
-        isSaving={isAddingSaving}
+      <ProductDialog
+        open={isAddDialogOpen || !!editingProduct}
+        onOpenChange={(open) => {
+          if (!open) {
+            if (isAddDialogOpen) {
+              setIsAddDialogOpen(false);
+              setAddValues({
+                stock: 0,
+                regular_price: 0,
+                shipping_price: 0,
+              });
+            }
+            setEditingProduct(null);
+            setEditValues({});
+          }
+        }}
+        mode={isAddDialogOpen ? "add" : "edit"}
+        product={editingProduct ? products?.find(p => p.id === editingProduct) : undefined}
+        editValues={isAddDialogOpen ? addValues : editValues}
+        onEditChange={isAddDialogOpen ? setAddValues : handleEditChange}
+        onSave={isAddDialogOpen ? handleAddSave : handleEditSave}
+        onCancel={isAddDialogOpen ? () => {
+          setIsAddDialogOpen(false);
+          setAddValues({
+            stock: 0,
+            regular_price: 0,
+            shipping_price: 0,
+          });
+        } : handleEditCancel}
+        onMediaUpload={handleMediaUpload}
+        onDeleteMedia={handleDeleteMedia}
+        onMediaClick={handleMediaClick}
+        isSaving={isSaving}
       />
     </div>
   );
