@@ -65,7 +65,7 @@ export const ProductMedia = ({ imageUrl, videoUrl, productName, webpUrl }: Produ
 
   return (
     <div className="space-y-4">
-      <div className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden">
+      <div className="relative aspect-square overflow-hidden">
         {videoUrl && showVideo ? (
           <video
             src={videoUrl}
@@ -115,7 +115,7 @@ export const ProductMedia = ({ imageUrl, videoUrl, productName, webpUrl }: Produ
       </div>
 
       <Dialog open={showMedia} onOpenChange={setShowMedia}>
-        <DialogContent className="max-w-4xl w-full p-0">
+        <DialogContent className="max-w-4xl w-full p-0 border-0">
           {videoUrl && showVideo ? (
             <video
               src={videoUrl}

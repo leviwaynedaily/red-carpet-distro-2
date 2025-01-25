@@ -51,6 +51,7 @@ export const ProductCard = ({
   const [isPlaying, setIsPlaying] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [webpError, setWebpError] = useState(false);
+  const [showVideoControls, setShowVideoControls] = useState(false);
 
   const { data: siteSettings } = useQuery({
     queryKey: ['site_settings'],
@@ -227,11 +228,13 @@ export const ProductCard = ({
                     {item.type === 'video' ? (
                       <video
                         src={item.url}
-                        className="max-h-[50vh] w-auto mx-auto rounded-lg"
+                        className="max-h-[40vh] w-auto mx-auto rounded-lg cursor-pointer"
                         autoPlay
                         playsInline
                         loop
                         muted
+                        controls={showVideoControls}
+                        onClick={() => setShowVideoControls(!showVideoControls)}
                       />
                     ) : (
                       <picture>
@@ -245,7 +248,7 @@ export const ProductCard = ({
                         <img
                           src={item.url}
                           alt={name}
-                          className="max-h-[50vh] w-auto mx-auto rounded-lg"
+                          className="max-h-[40vh] w-auto mx-auto rounded-lg"
                           onError={handleImageError}
                         />
                       </picture>
@@ -256,15 +259,17 @@ export const ProductCard = ({
             </Carousel>
           ) : (
             mediaItems.map((item, index) => (
-              <div key={index} className="flex justify-center">
+              <div key={index}>
                 {item.type === 'video' ? (
                   <video
                     src={item.url}
-                    className="max-h-[50vh] w-auto rounded-lg"
+                    className="max-h-[40vh] w-auto mx-auto rounded-lg cursor-pointer"
                     autoPlay
                     playsInline
                     loop
                     muted
+                    controls={showVideoControls}
+                    onClick={() => setShowVideoControls(!showVideoControls)}
                   />
                 ) : (
                   <picture>
@@ -278,7 +283,7 @@ export const ProductCard = ({
                     <img
                       src={item.url}
                       alt={name}
-                      className="max-h-[50vh] w-auto rounded-lg"
+                      className="max-h-[40vh] w-auto mx-auto rounded-lg"
                       onError={handleImageError}
                     />
                   </picture>
@@ -394,10 +399,10 @@ export const ProductCard = ({
             draggable
           >
             <div className="h-full touch-pan-y">
-              <div className="w-full flex justify-center py-2 bg-white border-b">
+              <div className="w-full flex justify-center py-4 bg-white">
                 <div className="w-12 h-1 rounded-full bg-gray-300" />
               </div>
-              <div className="h-[calc(100%-32px)] overflow-auto">
+              <div className="h-[calc(100%-48px)] overflow-auto pt-4">
                 {renderMediaContent()}
               </div>
             </div>
@@ -409,7 +414,7 @@ export const ProductCard = ({
             side="right" 
             className="w-[90vw] max-w-4xl p-0 h-screen"
           >
-            <div className="pt-8">
+            <div className="pt-12">
               {renderMediaContent()}
             </div>
           </SheetContent>

@@ -86,7 +86,7 @@ export default function ProductDetails() {
       </Button>
 
       <div className={`grid ${isMobile ? 'grid-rows-[auto_1fr] gap-2' : 'grid-cols-2 gap-8'} h-[calc(100vh-4rem)]`}>
-        <div className={`${isMobile ? 'h-[45vh]' : 'md:sticky md:top-24'} overflow-hidden`}>
+        <div className={`${isMobile ? 'h-[45vh]' : 'md:sticky md:top-24'} overflow-visible`}>
           <ProductMedia
             imageUrl={product.image_url}
             videoUrl={product.video_url}
