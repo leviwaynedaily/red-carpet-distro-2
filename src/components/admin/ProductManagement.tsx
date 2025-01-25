@@ -72,13 +72,31 @@ export function ProductManagement() {
 
       if (updateError) throw updateError;
 
+      // Set loading state for this product while we refresh
+      setUploadingMedia(prev => ({ 
+        ...prev, 
+        [editingProduct]: { isUploading: true, status: 'Saving changes...' }
+      }));
+
+      // Wait for the query to be invalidated and refetched
       await queryClient.invalidateQueries({ queryKey: ['products'] });
+      
+      // Add a small delay to ensure the new data is displayed
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
       setEditingProduct(null);
       setEditValues({});
       toast.success('Product updated successfully');
     } catch (error) {
       console.error('ProductManagement: Error updating product:', error);
       toast.error('Failed to update product');
+    } finally {
+      // Clear loading state
+      setUploadingMedia(prev => {
+        const newState = { ...prev };
+        delete newState[editingProduct];
+        return newState;
+      });
     }
   };
 
@@ -96,6 +114,12 @@ export function ProductManagement() {
   const handleDelete = async (id: string) => {
     console.log('ProductManagement: Deleting product:', id);
     try {
+      // Set loading state for this product while we delete
+      setUploadingMedia(prev => ({ 
+        ...prev, 
+        [id]: { isUploading: true, status: 'Deleting...' }
+      }));
+
       const { error: deleteError } = await supabase
         .from('products')
         .delete()
@@ -103,11 +127,23 @@ export function ProductManagement() {
 
       if (deleteError) throw deleteError;
 
+      // Wait for the query to be invalidated and refetched
       await queryClient.invalidateQueries({ queryKey: ['products'] });
+      
+      // Add a small delay to ensure the UI updates
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
       toast.success('Product deleted successfully');
     } catch (error) {
       console.error('ProductManagement: Error deleting product:', error);
       toast.error('Failed to delete product');
+    } finally {
+      // Clear loading state
+      setUploadingMedia(prev => {
+        const newState = { ...prev };
+        delete newState[id];
+        return newState;
+      });
     }
   };
 
@@ -265,6 +301,12 @@ export function ProductManagement() {
   const handleDeleteMedia = async (productId: string, type: 'image' | 'video') => {
     console.log('ProductManagement: Deleting media for product:', productId, type);
     try {
+      // Set loading state for this product while we delete media
+      setUploadingMedia(prev => ({ 
+        ...prev, 
+        [productId]: { isUploading: true, status: 'Removing media...' }
+      }));
+
       const mediaType = type === 'image' ? 'image_url' : 'video_url';
       const { error: updateError } = await supabase
         .from('products')
@@ -273,11 +315,23 @@ export function ProductManagement() {
 
       if (updateError) throw updateError;
 
+      // Wait for the query to be invalidated and refetched
       await queryClient.invalidateQueries({ queryKey: ['products'] });
+      
+      // Add a small delay to ensure the UI updates
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
       toast.success('Media deleted successfully');
     } catch (error) {
       console.error('ProductManagement: Error deleting media:', error);
       toast.error('Failed to delete media');
+    } finally {
+      // Clear loading state
+      setUploadingMedia(prev => {
+        const newState = { ...prev };
+        delete newState[productId];
+        return newState;
+      });
     }
   };
 

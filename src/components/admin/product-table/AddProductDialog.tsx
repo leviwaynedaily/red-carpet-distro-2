@@ -6,10 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Tables } from "@/integrations/supabase/types";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Loader2, Upload } from "lucide-react";
+import { Loader2, Play, X } from "lucide-react";
 import { FileUpload } from "@/components/ui/file-upload";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { supabase } from "@/integrations/supabase/client";
+import { addVersionToUrl } from "@/utils/mediaUtils";
 
 type Product = Tables<"products">;
 
@@ -37,72 +38,135 @@ export function AddProductDialog({
     image_url: "",
     video_url: "",
   });
+  const [uploadingMedia, setUploadingMedia] = useState<{ isUploading: boolean; status: string }>({ 
+    isUploading: false, 
+    status: '' 
+  });
 
-  const handleVideoUpload = async (url: string) => {
-    try {
-      // Create a video element to generate thumbnail
+  const generateThumbnail = async (file: File): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
       const video = document.createElement('video');
-      video.crossOrigin = 'anonymous';
-      video.src = url;
+      const url = URL.createObjectURL(file);
       
-      await new Promise((resolve, reject) => {
-        video.onloadeddata = resolve;
-        video.onerror = reject;
-        video.load();
-      });
+      video.onloadedmetadata = () => {
+        video.currentTime = 0;
+      };
 
-      // Create canvas and draw video frame
-      const canvas = document.createElement('canvas');
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const ctx = canvas.getContext('2d');
-      ctx?.drawImage(video, 0, 0, canvas.width, canvas.height);
+      video.onseeked = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) throw new Error('Failed to get canvas context');
 
-      // Convert canvas to blob
-      const blob = await new Promise<Blob>((resolve) => {
-        canvas.toBlob((blob) => resolve(blob!), 'image/webp', 0.95);
-      });
+          ctx.drawImage(video, 0, 0);
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                URL.revokeObjectURL(url);
+                video.remove();
+                resolve(blob);
+              } else {
+                reject(new Error('Failed to create thumbnail blob'));
+              }
+            },
+            'image/webp',
+            0.8
+          );
+        } catch (error) {
+          URL.revokeObjectURL(url);
+          video.remove();
+          reject(error);
+        }
+      };
 
-      // Generate a unique filename for the thumbnail
-      const timestamp = Date.now();
-      const thumbnailPath = `products/temp/thumbnail-${timestamp}.webp`;
+      video.onerror = () => {
+        URL.revokeObjectURL(url);
+        video.remove();
+        reject(new Error('Error loading video'));
+      };
 
-      // Upload the thumbnail to Supabase Storage
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('media')
-        .upload(thumbnailPath, blob, {
-          contentType: 'image/webp',
-          upsert: true
-        });
+      video.src = url;
+    });
+  };
 
-      if (uploadError) {
-        throw uploadError;
+  const handleMediaUpload = async (file: File) => {
+    console.log('AddProductDialog: Uploading media');
+    setUploadingMedia({ isUploading: true, status: 'Starting upload...' });
+
+    try {
+      const isImage = file.type.startsWith('image/');
+      const extension = isImage ? 'webp' : file.name.split('.').pop() || 'mp4';
+      const tempId = Date.now().toString(); // Temporary ID for file organization
+      const fileName = `products/temp/${tempId}.${extension}`;
+
+      // If it's a video, generate thumbnail first
+      let thumbnailUrl = null;
+      if (!isImage) {
+        try {
+          setUploadingMedia({ isUploading: true, status: 'Generating thumbnail...' });
+          const thumbnailBlob = await generateThumbnail(file);
+          
+          setUploadingMedia({ isUploading: true, status: 'Uploading thumbnail...' });
+          const thumbnailPath = `products/temp/${tempId}-thumbnail.webp`;
+          const { data: thumbnailData, error: thumbnailError } = await supabase.storage
+            .from('media')
+            .upload(thumbnailPath, thumbnailBlob);
+
+          if (thumbnailError) throw thumbnailError;
+
+          thumbnailUrl = supabase.storage
+            .from('media')
+            .getPublicUrl(thumbnailData.path).data.publicUrl;
+        } catch (thumbnailError) {
+          console.error('Failed to generate thumbnail:', thumbnailError);
+          toast.error('Failed to generate video thumbnail, but will continue with video upload');
+        }
       }
 
-      // Get the public URL for the uploaded thumbnail
-      const { data: publicUrlData } = supabase.storage
+      // Upload the main media file
+      setUploadingMedia({ 
+        isUploading: true, 
+        status: isImage ? 'Uploading image...' : 'Uploading video...' 
+      });
+
+      const { data, error } = await supabase.storage
         .from('media')
-        .getPublicUrl(thumbnailPath);
+        .upload(fileName, file);
 
-      const thumbnailUrl = publicUrlData.publicUrl;
+      if (error) throw error;
 
-      // Update the form values with both video and thumbnail URLs
+      const mediaUrl = supabase.storage
+        .from('media')
+        .getPublicUrl(data.path).data.publicUrl;
+
+      // Update the form values
       setValues(prev => ({
         ...prev,
-        video_url: url,
-        image_url: thumbnailUrl,
+        video_url: !isImage ? mediaUrl : prev.video_url,
+        image_url: isImage ? mediaUrl : thumbnailUrl || prev.image_url,
       }));
 
-      toast.success('Video and thumbnail uploaded successfully');
+      toast.success(isImage ? 'Image uploaded successfully' : 'Video uploaded successfully');
     } catch (error) {
-      console.error('Error handling video upload:', error);
-      toast.error('Failed to process video upload');
-      // Still set the video URL even if thumbnail generation fails
-      setValues(prev => ({
-        ...prev,
-        video_url: url,
-      }));
+      console.error('AddProductDialog: Error uploading media:', error);
+      toast.error('Failed to upload media');
+    } finally {
+      setUploadingMedia({ isUploading: false, status: '' });
     }
+  };
+
+  const handleDeleteMedia = (type: 'image' | 'video') => {
+    setValues(prev => ({
+      ...prev,
+      [type === 'image' ? 'image_url' : 'video_url']: '',
+    }));
+    toast.success('Media removed');
+  };
+
+  const handleMediaClick = (type: "image" | "video", url: string) => {
+    window.open(url, "_blank");
   };
 
   const handleSave = async () => {
@@ -138,7 +202,6 @@ export function AddProductDialog({
       console.log("Save result:", success);
 
       if (success) {
-        toast.success("Product added successfully");
         setValues({
           name: "",
           description: "",
@@ -149,9 +212,6 @@ export function AddProductDialog({
           image_url: "",
           video_url: "",
         });
-      } else {
-        // If onSave returns false, show error
-        toast.error("Failed to add product. Please try again.");
       }
     } catch (error) {
       console.error("Error in handleSave:", error);
@@ -186,7 +246,6 @@ export function AddProductDialog({
           overflow-y-auto
         `}
         onInteractOutside={(e) => {
-          // Prevent closing by clicking outside while saving
           if (isSaving) {
             e.preventDefault();
           }
@@ -196,7 +255,109 @@ export function AddProductDialog({
           <DialogTitle className="text-lg">Add New Product</DialogTitle>
           <p className="text-xs text-muted-foreground">Fields marked with * are required</p>
         </DialogHeader>
+
         <div className={`grid ${isMobile ? 'gap-2' : 'gap-4'}`}>
+          {/* Media Upload Section */}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1 text-sm">
+                Image<span className="text-destructive">*</span>
+              </Label>
+              <div className="relative">
+                {uploadingMedia.isUploading ? (
+                  <div className="h-32 bg-gray-100 rounded-lg flex flex-col items-center justify-center gap-2">
+                    <Loader2 className="h-6 w-6 text-gray-400 animate-spin" />
+                    <div className="text-xs text-gray-500">{uploadingMedia.status}</div>
+                  </div>
+                ) : (
+                  <>
+                    {values.image_url ? (
+                      <div className="relative group">
+                        <img
+                          src={addVersionToUrl(values.image_url)}
+                          alt="Product preview"
+                          className="h-32 w-full object-cover rounded-lg cursor-pointer"
+                          onClick={() => handleMediaClick("image", values.image_url!)}
+                        />
+                        <Button
+                          variant="destructive"
+                          size="icon"
+                          className="absolute -top-2 -right-2 h-5 w-5 hidden group-hover:flex"
+                          onClick={() => handleDeleteMedia("image")}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <FileUpload
+                        onUploadComplete={handleMediaUpload}
+                        accept="image/*"
+                        bucket="media"
+                        className="w-full h-32"
+                        skipUpload={true}
+                      />
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-sm">Video</Label>
+              <div className="relative">
+                {uploadingMedia.isUploading ? (
+                  <div className="h-32 bg-gray-100 rounded-lg flex flex-col items-center justify-center gap-2">
+                    <Loader2 className="h-6 w-6 text-gray-400 animate-spin" />
+                    <div className="text-xs text-gray-500">{uploadingMedia.status}</div>
+                  </div>
+                ) : (
+                  <>
+                    {values.video_url && (
+                      <div className="relative group">
+                        {values.image_url ? (
+                          <div className="relative">
+                            <img
+                              src={addVersionToUrl(values.image_url)}
+                              alt="Video preview"
+                              className="h-32 w-full object-cover rounded-lg cursor-pointer"
+                              onClick={() => handleMediaClick("video", values.video_url!)}
+                            />
+                            <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors rounded-lg flex items-center justify-center">
+                              <Play className="h-8 w-8 text-white" />
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="h-32 bg-gray-100 rounded-lg flex items-center justify-center cursor-pointer"
+                               onClick={() => handleMediaClick("video", values.video_url!)}>
+                            <Play className="h-8 w-8 text-gray-400" />
+                          </div>
+                        )}
+                        <Button
+                          variant="destructive"
+                          size="icon"
+                          className="absolute -top-2 -right-2 h-5 w-5 hidden group-hover:flex"
+                          onClick={() => handleDeleteMedia("video")}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    )}
+                    {!values.video_url && (
+                      <FileUpload
+                        onUploadComplete={handleMediaUpload}
+                        accept="video/*"
+                        bucket="media"
+                        className="w-full h-32"
+                        skipUpload={true}
+                      />
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Rest of the form fields */}
           <div className="grid gap-1">
             <Label htmlFor="name" className="flex items-center gap-1 text-sm">
               Name<span className="text-destructive">*</span>
@@ -249,133 +410,60 @@ export function AddProductDialog({
               <Input
                 id="stock"
                 type="number"
-                value={values.stock?.toString()}
-                onChange={(e) => setValues({ ...values, stock: parseInt(e.target.value) })}
+                value={values.stock}
+                onChange={(e) => setValues({ ...values, stock: parseInt(e.target.value) || 0 })}
                 disabled={isSaving}
-                min="0"
-                placeholder="0"
                 className="h-8 text-sm"
               />
             </div>
 
             <div className="grid gap-1">
               <Label htmlFor="regular_price" className="text-sm">Price</Label>
-              <div className="relative">
-                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
-                <Input
-                  id="regular_price"
-                  type="number"
-                  step="0.01"
-                  value={values.regular_price?.toString()}
-                  onChange={(e) => setValues({ ...values, regular_price: parseFloat(e.target.value) })}
-                  disabled={isSaving}
-                  min="0"
-                  placeholder="0.00"
-                  className="pl-5 h-8 text-sm"
-                />
-              </div>
+              <Input
+                id="regular_price"
+                type="number"
+                value={values.regular_price}
+                onChange={(e) => setValues({ ...values, regular_price: parseFloat(e.target.value) || 0 })}
+                disabled={isSaving}
+                className="h-8 text-sm"
+              />
             </div>
 
             <div className="grid gap-1">
               <Label htmlFor="shipping_price" className="text-sm">Shipping</Label>
-              <div className="relative">
-                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
-                <Input
-                  id="shipping_price"
-                  type="number"
-                  step="0.01"
-                  value={values.shipping_price?.toString()}
-                  onChange={(e) => setValues({ ...values, shipping_price: parseFloat(e.target.value) })}
-                  disabled={isSaving}
-                  min="0"
-                  placeholder="0.00"
-                  className="pl-5 h-8 text-sm"
-                />
-              </div>
+              <Input
+                id="shipping_price"
+                type="number"
+                value={values.shipping_price}
+                onChange={(e) => setValues({ ...values, shipping_price: parseFloat(e.target.value) || 0 })}
+                disabled={isSaving}
+                className="h-8 text-sm"
+              />
             </div>
           </div>
 
-          <div className="grid gap-1">
-            <Label className="flex items-center gap-1 text-sm">
-              Media<span className="text-destructive">*</span>
-              <span className="text-xs text-muted-foreground">(Image or Video)</span>
-            </Label>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <div className="flex items-center gap-2">
-                  {values.image_url && (
-                    <img
-                      src={values.image_url}
-                      alt="Product"
-                      className="w-10 h-10 object-cover rounded-md"
-                    />
-                  )}
-                  <FileUpload
-                    onUploadComplete={(url) => setValues({ ...values, image_url: url })}
-                    accept="image/*"
-                    bucket="media"
-                    folderPath="products/temp"
-                    fileName="image"
-                    className="w-8"
-                    buttonContent={<Upload className={`h-4 w-4 ${isSaving ? 'opacity-50' : ''}`} />}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-center gap-2">
-                  {/* Show thumbnail preview for video */}
-                  {values.video_url && values.image_url && (
-                    <>
-                      <img
-                        src={values.image_url}
-                        alt="Video thumbnail"
-                        className="w-10 h-10 object-cover rounded-md"
-                      />
-                      <video
-                        src={values.video_url}
-                        className="hidden" // Hide video element but keep for reference
-                      />
-                    </>
-                  )}
-                  <FileUpload
-                    onUploadComplete={handleVideoUpload}
-                    accept="video/*"
-                    bucket="media"
-                    folderPath="products/temp"
-                    fileName="video"
-                    className="w-8"
-                    buttonContent={<Upload className={`h-4 w-4 ${isSaving ? 'opacity-50' : ''}`} />}
-                  />
-                </div>
-                {values.video_url && (
-                  <p className="text-xs text-muted-foreground mt-1">Video uploaded with preview image</p>
-                )}
-              </div>
-            </div>
-            {!values.image_url && !values.video_url && (
-              <p className="text-xs text-destructive">Required</p>
-            )}
+          <div className="flex justify-end gap-2 mt-4">
+            <Button
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={isSaving}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSave}
+              disabled={isSaving}
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                'Save'
+              )}
+            </Button>
           </div>
-        </div>
-        <div className={`flex justify-end gap-2 ${isMobile ? 'sticky bottom-0 bg-background py-2 border-t mt-2' : ''}`}>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving} className="h-8 text-sm">
-            Cancel
-          </Button>
-          <Button 
-            onClick={handleSave} 
-            disabled={isSaving || !values.name || !values.strain || (!values.image_url && !values.video_url)}
-            className="h-8 text-sm"
-          >
-            {isSaving ? (
-              <>
-                <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              'Add Product'
-            )}
-          </Button>
         </div>
       </DialogContent>
     </Dialog>
